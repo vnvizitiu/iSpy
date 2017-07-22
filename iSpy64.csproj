@@ -35,9 +35,12 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <OldToolsVersion>3.5</OldToolsVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
     <PublishUrl>ftp://216.119.95.247/hosting/ispy/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -55,9 +58,6 @@
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>bin\Debug\</OutputPath>
@@ -80,6 +80,7 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -102,6 +103,7 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <PlatformTarget>x86</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>false</SignManifests>
@@ -128,6 +130,7 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <Optimize>false</Optimize>
     <GenerateSerializationAssemblies>On</GenerateSerializationAssemblies>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
     <OutputPath>bin\x86\Release\</OutputPath>
@@ -147,6 +150,7 @@
     <CodeAnalysisRuleDirectories>;c:\Program Files\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
     <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
     <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -166,6 +170,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>false</Optimize>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <PlatformTarget>x64</PlatformTarget>
@@ -173,6 +178,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="AForge, Version=2.2.3.0, Culture=neutral, PublicKeyToken=c1db6ff4eaa06aeb, processorArchitecture=MSIL">
@@ -187,41 +193,40 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>DLLS\AForge.Math.dll</HintPath>
     </Reference>
-    <Reference Include="DropNet">
-      <HintPath>$(SolutionDir)packages\DropNet.1.10.23.0\lib\net40\DropNet.dll</HintPath>
+    <Reference Include="BouncyCastle.Crypto, Version=1.8.1.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
+      <HintPath>packages\BouncyCastle.1.8.1\lib\BouncyCastle.Crypto.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharp.Core, Version=4.4.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\FSharp.Core.4.0.0.1\lib\net40\FSharp.Core.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="FlickrNet, Version=3.24.0.0, Culture=neutral, PublicKeyToken=2491df59efa5d132, processorArchitecture=MSIL">
+      <HintPath>packages\FlickrNet.3.24.0\lib\net20\FlickrNet.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis, Version=1.9.0.26011, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.1.9.0\lib\net40\Google.Apis.dll</HintPath>
+    <Reference Include="Google.Apis, Version=1.26.2.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.1.26.2\lib\net45\Google.Apis.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.Auth, Version=1.9.0.26011, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.Auth.1.9.0\lib\net40\Google.Apis.Auth.dll</HintPath>
+    <Reference Include="Google.Apis.Auth, Version=1.26.2.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.Auth.1.26.2\lib\net45\Google.Apis.Auth.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.Auth.PlatformServices, Version=1.9.0.26016, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.Auth.1.9.0\lib\net40\Google.Apis.Auth.PlatformServices.dll</HintPath>
+    <Reference Include="Google.Apis.Auth.PlatformServices, Version=1.26.2.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.Auth.1.26.2\lib\net45\Google.Apis.Auth.PlatformServices.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.Core, Version=1.9.0.26010, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.Core.1.9.0\lib\portable-net40+sl50+win+wpa81+wp80\Google.Apis.Core.dll</HintPath>
+    <Reference Include="Google.Apis.Core, Version=1.26.2.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.Core.1.26.2\lib\net45\Google.Apis.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.Drive.v2, Version=1.9.0.176, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.Drive.v2.1.9.0.1760\lib\portable-net40+sl50+win+wpa81+wp80\Google.Apis.Drive.v2.dll</HintPath>
+    <Reference Include="Google.Apis.Drive.v3, Version=1.26.2.862, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.Drive.v3.1.26.2.862\lib\net45\Google.Apis.Drive.v3.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.PlatformServices, Version=1.9.0.26013, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.1.9.0\lib\net40\Google.Apis.PlatformServices.dll</HintPath>
+    <Reference Include="Google.Apis.PlatformServices, Version=1.26.2.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.1.26.2\lib\net45\Google.Apis.PlatformServices.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Google.Apis.YouTube.v3, Version=1.9.0.141, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Google.Apis.YouTube.v3.1.9.0.1410\lib\portable-net40+sl50+win+wpa81+wp80\Google.Apis.YouTube.v3.dll</HintPath>
+    <Reference Include="Google.Apis.YouTube.v3, Version=1.26.2.760, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Apis.YouTube.v3.1.26.2.760\lib\net45\Google.Apis.YouTube.v3.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Interop.NATUPNPLib">
@@ -236,12 +241,13 @@
       <HintPath>DLLS\Interop.NetFwTypeLib.dll</HintPath>
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
-    <Reference Include="Interop.NETWORKLIST">
-      <HintPath>DLLS\x64\Interop.NETWORKLIST.dll</HintPath>
+    <Reference Include="Interop.NETWORKLIST, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
       <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>DLLS\x64\Interop.NETWORKLIST.dll</HintPath>
     </Reference>
-    <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
+    <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+      <HintPath>packages\log4net.2.0.8\lib\net40-full\log4net.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
@@ -261,16 +267,16 @@
       <HintPath>$(SolutionDir)packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.Extensions.Desktop.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="NAudio, Version=1.7.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\NAudio.1.7.3\lib\net35\NAudio.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="NAudio, Version=1.8.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>DLLS\NAudio.dll</HintPath>
     </Reference>
-    <Reference Include="NAudio.Lame">
-      <HintPath>$(SolutionDir)packages\NAudio.Lame.1.0.3\lib\net20\NAudio.Lame.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="NAudio.Lame, Version=1.0.3.3048, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>DLLS\NAudio.Lame.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>$(SolutionDir)packages\Newtonsoft.Json.7.0.1\lib\net40\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="NSpeex">
@@ -285,32 +291,23 @@
     <Reference Include="nVLC.LibVlcWrapper">
       <HintPath>DLLS\nVLC.LibVlcWrapper.dll</HintPath>
     </Reference>
-    <Reference Include="onvif.discovery">
-      <HintPath>Onvif\onvif.discovery.dll</HintPath>
-    </Reference>
-    <Reference Include="onvif.services">
-      <HintPath>Onvif\onvif.services.dll</HintPath>
-    </Reference>
-    <Reference Include="onvif.session">
-      <HintPath>Onvif\onvif.session.dll</HintPath>
-    </Reference>
-    <Reference Include="onvif.utils">
-      <HintPath>Onvif\onvif.utils.dll</HintPath>
-    </Reference>
     <Reference Include="Renci.SshNet">
       <HintPath>DLLS\Renci.SshNet.dll</HintPath>
     </Reference>
     <Reference Include="Renderers">
       <HintPath>DLLS\Renderers.dll</HintPath>
     </Reference>
-    <Reference Include="RestSharp">
-      <HintPath>packages\RestSharp.105.0.1\lib\net4\RestSharp.dll</HintPath>
+    <Reference Include="RestSharp, Version=105.2.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\RestSharp.105.2.3\lib\net4\RestSharp.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="SharpDX">
-      <HintPath>$(SharpDXPackageBinDir)\SharpDX.dll</HintPath>
+    <Reference Include="SharpDX, Version=3.1.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>packages\SharpDX.3.1.1\lib\net45\SharpDX.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="SharpDX.DirectInput">
-      <HintPath>$(SharpDXPackageBinDir)\SharpDX.DirectInput.dll</HintPath>
+    <Reference Include="SharpDX.DirectInput, Version=3.1.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>packages\SharpDX.DirectInput.3.1.1\lib\net45\SharpDX.DirectInput.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -324,47 +321,23 @@
       <Name>System.Drawing</Name>
     </Reference>
     <Reference Include="System.EnterpriseServices" />
-    <Reference Include="System.IO">
-      <HintPath>$(SolutionDir)packages\Microsoft.Bcl.1.1.10\lib\net40\System.IO.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System.Management" />
     <Reference Include="System.Net" />
-    <Reference Include="System.Net.Http, Version=2.2.22.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Microsoft.Net.Http.2.2.22\lib\net40\System.Net.Http.dll</HintPath>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Net.Http.Extensions, Version=2.2.29.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Net.Http.2.2.29\lib\net45\System.Net.Http.Extensions.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Net.Http.Extensions, Version=2.2.22.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Microsoft.Net.Http.2.2.22\lib\net40\System.Net.Http.Extensions.dll</HintPath>
+    <Reference Include="System.Net.Http.Primitives, Version=4.2.29.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Net.Http.2.2.29\lib\net45\System.Net.Http.Primitives.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Net.Http.Primitives, Version=2.2.22.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Microsoft.Net.Http.2.2.22\lib\net40\System.Net.Http.Primitives.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Net.Http.WebRequest, Version=2.2.22.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Microsoft.Net.Http.2.2.22\lib\net40\System.Net.Http.WebRequest.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Reactive.Core">
-      <HintPath>Onvif\System.Reactive.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Reactive.Interfaces">
-      <HintPath>Onvif\System.Reactive.Interfaces.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Reactive.Linq">
-      <HintPath>Onvif\System.Reactive.Linq.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Runtime">
-      <HintPath>$(SolutionDir)packages\Microsoft.Bcl.1.1.10\lib\net40\System.Runtime.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
+    <Reference Include="System.Net.Http.WebRequest" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
+    <Reference Include="System.ServiceModel.Channels" />
+    <Reference Include="System.ServiceModel.Discovery" />
     <Reference Include="System.Speech" />
-    <Reference Include="System.Threading.Tasks">
-      <HintPath>$(SolutionDir)packages\Microsoft.Bcl.1.1.10\lib\net40\System.Threading.Tasks.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System.Web.Services" />
     <Reference Include="System.Windows.Forms">
       <Name>System.Windows.Forms</Name>
@@ -372,15 +345,6 @@
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml">
       <Name>System.XML</Name>
-    </Reference>
-    <Reference Include="utils.common">
-      <HintPath>Onvif\utils.common.dll</HintPath>
-    </Reference>
-    <Reference Include="utils.diagnostics">
-      <HintPath>Onvif\utils.diagnostics.dll</HintPath>
-    </Reference>
-    <Reference Include="utils.fsharp">
-      <HintPath>Onvif\utils.fsharp.dll</HintPath>
     </Reference>
     <Reference Include="Windows7ToolStripRenderer">
       <HintPath>DLLS\Windows7ToolStripRenderer.dll</HintPath>
@@ -409,15 +373,24 @@
     <Compile Include="AddRemoteCommand.Designer.cs">
       <DependentUpon>AddRemoteCommand.cs</DependentUpon>
     </Compile>
+    <Compile Include="Cloud\Box.cs" />
     <Compile Include="Cloud\CloudGateway.cs" />
     <Compile Include="Cloud\Drive.cs" />
     <Compile Include="Cloud\Dropbox.cs" />
+    <Compile Include="Cloud\Flickr.cs" />
+    <Compile Include="Cloud\OneDrive.cs" />
     <Compile Include="Cloud\YouTubeUploader.cs" />
     <Compile Include="CommandButtons.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="CommandButtons.Designer.cs">
       <DependentUpon>CommandButtons.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Authorizer.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\Authorizer.Designer.cs">
+      <DependentUpon>Authorizer.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\AutoCompleteTextbox.cs">
       <SubType>Component</SubType>
@@ -427,6 +400,12 @@
     </Compile>
     <Compile Include="Controls\HuePicker.cs">
       <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\ONVIFWizard.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ONVIFWizard.Designer.cs">
+      <DependentUpon>ONVIFWizard.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\PictureBox.cs">
       <SubType>Component</SubType>
@@ -479,12 +458,20 @@
     <Compile Include="Importer.Designer.cs">
       <DependentUpon>Importer.cs</DependentUpon>
     </Compile>
+    <Compile Include="Onvif\BasicAuthBehaviour.cs" />
+    <Compile Include="Onvif\BasicAuthMessageInspector.cs" />
+    <Compile Include="Onvif\Discovery.cs" />
+    <Compile Include="Onvif\MulticastCapabilitiesBindingElement.cs" />
+    <Compile Include="Onvif\ONVIFDevice.cs" />
+    <Compile Include="Onvif\PasswordDigestBehaviour.cs" />
+    <Compile Include="Onvif\PasswordDigestMessageInspector.cs" />
     <Compile Include="PTZConfig.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="PTZConfig.Designer.cs">
       <DependentUpon>PTZConfig.cs</DependentUpon>
     </Compile>
+    <Compile Include="Realtime\MediaWriter.cs" />
     <Compile Include="Server\CameraScanner.cs" />
     <Compile Include="Server\Conf.cs" />
     <Compile Include="Server\ConnectionOption.cs" />
@@ -497,6 +484,40 @@
     <Compile Include="Server\WebSocketConnection.cs" />
     <Compile Include="Server\WebSocketServer.cs" />
     <Compile Include="Server\X509.cs" />
+    <Compile Include="Service References\DeviceClient\Reference.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Service References\DeviceClient\Reference1.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Service References\DeviceMedia\Reference.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Service References\DeviceMedia\Reference1.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Service References\DevicePTZ\Reference.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Service References\DevicePTZ\Reference1.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
+    <Compile Include="Sources\Audio\talk\TalkFoscam.cs" />
+    <Compile Include="Sources\Video\MediaStream.cs" />
+    <Compile Include="Sources\Video\Tokeniser.cs" />
+    <Compile Include="Sources\Video\VideoBase.cs" />
     <Compile Include="TagConfigure.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -705,7 +726,6 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Delegates.cs" />
-    <Compile Include="DeviceDescriptionHolder.cs" />
     <Compile Include="DirectShow\CameraControlProperty.cs" />
     <Compile Include="DirectShow\FilterInfo.cs" />
     <Compile Include="DirectShow\FilterInfoCollection.cs" />
@@ -943,17 +963,14 @@
     <Compile Include="Sources\Audio\SpeechSynth.cs" />
     <Compile Include="Sources\Audio\streams\AudioInStream.cs" />
     <Compile Include="Sources\Audio\streams\DirectStream.cs" />
-    <Compile Include="Sources\Audio\streams\FFMPEGStream.cs" />
     <Compile Include="Sources\Audio\streams\iSpyServerStream.cs" />
     <Compile Include="Sources\Audio\streams\LocalDeviceStream.cs" />
     <Compile Include="Sources\Audio\streams\MP3Stream.cs" />
-    <Compile Include="Sources\Audio\streams\VLCStream.cs" />
     <Compile Include="Sources\Audio\streams\WavStream.cs" />
     <Compile Include="Sources\Audio\streams\WebStream.cs" />
     <Compile Include="Sources\Audio\talk\ITalkTarget.cs" />
     <Compile Include="Sources\Audio\talk\TalkAxis.cs" />
     <Compile Include="Sources\Audio\talk\TalkDeviceStream.cs" />
-    <Compile Include="Sources\Audio\talk\TalkFoscam.cs" />
     <Compile Include="Sources\Audio\talk\TalkHelper.cs" />
     <Compile Include="Sources\Audio\talk\TalkHelperStream.cs" />
     <Compile Include="Sources\Audio\talk\TalkIPWebcamAndroid.cs" />
@@ -965,7 +982,6 @@
     <Compile Include="Sources\Video\CloneStream.cs" />
     <Compile Include="Sources\Video\DesktopStream.cs" />
     <Compile Include="Sources\Video\discovery\localdevice.cs" />
-    <Compile Include="Sources\Video\FFMPEGStream.cs" />
     <Compile Include="Sources\Video\IVideoSource.cs" />
     <Compile Include="Sources\Video\JPEGStream.cs" />
     <Compile Include="Sources\Video\KinectNetworkStream.cs" />
@@ -1225,6 +1241,8 @@
     <Content Include="DLLS\Interop.NETCONLib.dll" />
     <Content Include="DLLS\Interop.NetFwTypeLib.dll" />
     <Content Include="DLLS\Microsoft.Kinect.dll" />
+    <Content Include="DLLS\NAudio.dll" />
+    <Content Include="DLLS\NAudio.Lame.dll" />
     <Content Include="DLLS\NSpeex.dll" />
     <Content Include="DLLS\nVLC.Declarations.dll" />
     <Content Include="DLLS\nVLC.Implementation.dll" />
@@ -1233,10 +1251,8 @@
     <Content Include="DLLS\Renderers.dll" />
     <Content Include="DLLS\Windows7ToolStripRenderer.dll" />
     <Content Include="DLLS\x64\Interop.NETWORKLIST.dll" />
+    <Content Include="DLLS\x64\libmp3lame.64.dll" />
     <Content Include="DLLS\xiApi.NET.dll" />
-    <Content Include="libmp3lame.64.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Commands\example.bat">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -1255,6 +1271,25 @@
     <Content Include="redist\WindowsServer2003-KB942288-v4-x64.exe" />
     <Content Include="redist\WindowsServer2003-KB942288-v4-x86.exe" />
     <Content Include="redist\WindowsXP-KB942288-v3-x86.exe" />
+    <Content Include="Service References\DeviceClient\configuration.svcinfo" />
+    <Content Include="Service References\DeviceClient\configuration91.svcinfo" />
+    <Content Include="Service References\DeviceClient\Reference.svcmap">
+      <Generator>WCF Proxy Generator</Generator>
+      <LastGenOutput>Reference1.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </Content>
+    <Content Include="Service References\DeviceMedia\configuration.svcinfo" />
+    <Content Include="Service References\DeviceMedia\configuration91.svcinfo" />
+    <Content Include="Service References\DeviceMedia\Reference.svcmap">
+      <Generator>WCF Proxy Generator</Generator>
+      <LastGenOutput>Reference1.cs</LastGenOutput>
+    </Content>
+    <Content Include="Service References\DevicePTZ\configuration.svcinfo" />
+    <Content Include="Service References\DevicePTZ\configuration91.svcinfo" />
+    <Content Include="Service References\DevicePTZ\Reference.svcmap">
+      <Generator>WCF Proxy Generator</Generator>
+      <LastGenOutput>Reference1.cs</LastGenOutput>
+    </Content>
     <Content Include="sounds\alsationxsiberian_bark.wav">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -1367,6 +1402,155 @@
     <Content Include="sounds\wiggle.wav">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="Service References\DeviceClient\b-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\bf-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\devicemgmt.wsdl" />
+    <None Include="Service References\DeviceClient\include.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.BackupFile.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.BinaryData.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Capabilities.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Certificate.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.CertificateInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.CertificateStatus.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.DeviceServiceCapabilities.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.DiscoveryMode.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.DNSInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Dot11AvailableNetworks.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Dot11Capabilities.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Dot11Status.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Dot1XConfiguration.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.DynamicDNSInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.GetSystemUrisResponseExtension.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.HostnameInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.IPAddressFilter.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NetworkGateway.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NetworkHost.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NetworkInterface.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NetworkProtocol.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NetworkZeroConfiguration.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.NTPInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.RelayOutput.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.RemoteUser.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Scope.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.Service.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.StorageConfiguration.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.SupportInformation.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.SystemDateTime.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.SystemLog.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.SystemLogUri.datasource" />
+    <None Include="Service References\DeviceClient\iSpyApplication.DeviceClient.User.datasource" />
+    <None Include="Service References\DeviceClient\item.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\onvif.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\t-1.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\ws-addr.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\xml.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceClient\xmlmime.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\b-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\bf-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\include.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioDecoderConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioDecoderConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioEncoderConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioEncoderConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioOutput.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioOutputConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioOutputConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioSource.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioSourceConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.AudioSourceConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.Capabilities.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.MediaUri.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.MetadataConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.MetadataConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.OSDConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.OSDConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.Profile.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoAnalyticsConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoEncoderConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoEncoderConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoSource.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoSourceConfiguration.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoSourceConfigurationOptions.datasource" />
+    <None Include="Service References\DeviceMedia\iSpyApplication.DeviceMedia.VideoSourceMode.datasource" />
+    <None Include="Service References\DeviceMedia\item.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\media.wsdl" />
+    <None Include="Service References\DeviceMedia\onvif.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\t-1.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\ws-addr.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\xml.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DeviceMedia\xmlmime.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\b-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\bf-2.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\include.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.Capabilities.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PresetTour.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZConfiguration.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZConfigurationOptions.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZNode.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZPreset.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZPresetTourOptions.datasource" />
+    <None Include="Service References\DevicePTZ\iSpyApplication.DevicePTZ.PTZStatus.datasource" />
+    <None Include="Service References\DevicePTZ\item.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\onvif.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\PTZService.wsdl" />
+    <None Include="Service References\DevicePTZ\t-1.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\ws-addr.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\xml.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Service References\DevicePTZ\xmlmime.xsd">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Supporting\iSpyServerSetup.msi" />
     <None Include="Web References\iSpyWS\ispysecure.disco" />
     <Content Include="Supporting\iSpyMonitor.exe" />
@@ -1448,6 +1632,9 @@
     <EmbeddedResource Include="Controls\AlertSettings.resx">
       <DependentUpon>AlertSettings.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Controls\Authorizer.resx">
+      <DependentUpon>Authorizer.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\CameraWindow.resx">
       <DependentUpon>CameraWindow.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -1499,6 +1686,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\MediaPanelControl.resx">
       <DependentUpon>MediaPanelControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ONVIFWizard.resx">
+      <DependentUpon>ONVIFWizard.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\ParamConfig.resx">
       <DependentUpon>ParamConfig.cs</DependentUpon>
@@ -1962,7 +2152,7 @@
       <Install>false</Install>
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
-      <Visible>false</Visible>
+      <Visible>False</Visible>
       <ProductName>.NET Framework 3.5</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
@@ -1974,7 +2164,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="bin\x86\" />
-    <Folder Include="Onvif\" />
     <Folder Include="WebServerRoot\Media\Audio\" />
     <Folder Include="WebServerRoot\Media\Video\" />
   </ItemGroup>
@@ -1982,35 +2171,33 @@
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="FFMPEG\Video.FFMPEG.64.vcxproj">
-      <Project>{ff31dd24-127d-4eb1-929c-f5738147e886}</Project>
-      <Name>iSpy.Video.FFMPEG</Name>
+    <ProjectReference Include="FFmpeg.AutoGen\FFmpeg.AutoGen.csproj">
+      <Project>{a536b02a-b0b1-4753-8328-17369ef09976}</Project>
+      <Name>FFmpeg.AutoGen</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>
     </PreBuildEvent>
-    <PostBuildEvent>xcopy "$(ProjectDir)FFMPEG\ffmpeg64\bin\*.*" "$(ProjectDir)$(OutDir)" /Y
-if NOT %25ComputerName%25 == DEVPC GOTO end
+    <PostBuildEvent>xcopy "$(ProjectDir)dlls\$(PlatformName)\*.*" "$(ProjectDir)$(OutDir)" /Y
+if NOT %25ComputerName%25 == DEVPC GOTO:end
 call "D:\projects\ispy\signing\iSpy64.bat"
 :end
 
 </PostBuildEvent>
   </PropertyGroup>
-  <Import Project="..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />
+  <Import Project="packages\SharpDX.2.6.3\build\SharpDX.targets" Condition="Exists('packages\SharpDX.2.6.3\build\SharpDX.targets')" />
+  <Import Project="packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets" Condition="Exists('packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets')" />
   <Target Name="EnsureBclBuildImported" BeforeTargets="BeforeBuild" Condition="'$(BclBuildImported)' == ''">
     <Error Condition="!Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=317567." HelpKeyword="BCLBUILD2001" />
     <Error Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="The build restored NuGet packages. Build the project again to include these packages in the build. For more information, see http://go.microsoft.com/fwlink/?LinkID=317568." HelpKeyword="BCLBUILD2002" />
   </Target>
   <Import Project="..\packages\SharpDX.2.6.3\build\SharpDX.targets" Condition="Exists('..\packages\SharpDX.2.6.3\build\SharpDX.targets')" />
-  <Import Project="packages\SharpDX.2.6.3\build\SharpDX.targets" Condition="Exists('packages\SharpDX.2.6.3\build\SharpDX.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\SharpDX.2.6.3\build\SharpDX.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\SharpDX.2.6.3\build\SharpDX.targets'))" />
     <Error Condition="!Exists('packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets'))" />
   </Target>
-  <Import Project="packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets" Condition="Exists('packages\Microsoft.Bcl.Build.1.0.21\build\Microsoft.Bcl.Build.targets')" />
 </Project>

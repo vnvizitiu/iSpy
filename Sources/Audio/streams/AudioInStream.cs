@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.Remoting.Messaging;
 using NAudio.Wave;
 
 namespace iSpyApplication.Sources.Audio.streams
@@ -7,6 +8,7 @@ namespace iSpyApplication.Sources.Audio.streams
     {
         public int PacketSize = 882;
         public int Interval = 40;
+        public bool IsAudio => true;
 
         public BufferedWaveProvider WaveOutProvider { get; set; }
 
@@ -112,6 +114,10 @@ namespace iSpyApplication.Sources.Audio.streams
         /// </remarks>
         /// 
         public void Stop()
+        {
+        }
+
+        public void Restart()
         {
         }
 

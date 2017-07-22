@@ -11,16 +11,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
-using Google.Apis.Drive.v2.Data;
 using iSpyApplication.Cloud;
 using iSpyApplication.Controls;
+using iSpyApplication.Onvif;
 using iSpyApplication.Utilities;
 using NAudio.Wave;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using odm.core;
-using onvif.services;
-using utils;
 using DateTime = System.DateTime;
 using File = System.IO.File;
 using IPAddress = System.Net.IPAddress;
@@ -34,7 +31,7 @@ namespace iSpyApplication.Server
         private List<NetworkDevice> _scanResults = new List<NetworkDevice>();
         private List<ConnectionOption> _devicescanResults = new List<ConnectionOption>();
 
-        private void LoadJson(string sPhysicalFilePath, string sBuffer, string sHttpVersion, HttpRequest req)
+        private void LoadJson(string sPhysicalFilePath, string sRequest, string sBuffer, string sHttpVersion, HttpRequest req)
         {
             var cmd = GetVar(sPhysicalFilePath, "cmd");
 
@@ -110,7 +107,7 @@ namespace iSpyApplication.Server
                             oid = MainForm.NextCameraId;
                             break;
                     }
-                    MainForm.InstanceReference.AddObjectExternal(ot,stid,320,240,"","");
+                    MainForm.InstanceReference.AddObjectExternal(ot,stid,640,480,"","");
                     resp = "{\"actionResult\":\"editsource\",\"typeID\":" + ot + ",\"ID\":" + oid + "}";
                     break;
                 case "createfromwizard":
@@ -148,7 +145,7 @@ namespace iSpyApplication.Server
 
                                 oid = MainForm.NextCameraId;
                                 
-                                cw = (CameraWindow) MainForm.InstanceReference.AddObjectExternal(2, sourceTypeID,320,240,"",sourceUri);
+                                cw = (CameraWindow) MainForm.InstanceReference.AddObjectExternal(2, sourceTypeID,640,480,"",sourceUri);
                                     
                                 cw.Camobject.settings.videosourcestring = sourceUri;
                                 cw.Camobject.settings.cookies = mmurl.cookies;
@@ -226,6 +223,11 @@ namespace iSpyApplication.Server
                                     cw.Camobject.settings.audiousername = username;
                                     cw.Camobject.settings.audiopassword = password;
                                 }
+                                
+                                cw.Camobject.settings.tokenconfig.tokenpath = mmurl.tokenPath;
+                                cw.Camobject.settings.tokenconfig.tokenpost = mmurl.tokenPost;
+                                cw.Camobject.settings.tokenconfig.tokenport = mmurl.tokenPort;
+                                
 
                                 if (audioSourceTypeID > -1)
                                 {
@@ -328,7 +330,7 @@ namespace iSpyApplication.Server
                         if (_deviceScanner != null)
                         {
                             _deviceScanner.QuitScanner();
-                            break;
+                            _deviceScanner = null;
                         }
                         Uri uri;
                         if (!Uri.TryCreate(GetVar(sPhysicalFilePath, "url"), UriKind.Absolute, out uri))
@@ -437,103 +439,114 @@ namespace iSpyApplication.Server
                             error = LocRm.GetString("NotSubscribed", lc);
                         }
                         else
-                        { 
-                            switch (provider)
+                        {
+                            string code = GetVar(sRequest, "code");
+                            switch (provider.ToLower())
                             {
-                                case "dropbox":
-                                    url = Dropbox.GetAuthoriseURL(out error);
+                                case "box":
+                                    if (Box.Authorise(code))
+                                    {
+                                        message = LocRm.GetString("Authorised", lc);
+                                    }
+                                    else
+                                        message = LocRm.GetString("Failed", lc);
+                                    break;
+                                case "onedrive":
+                                    if (OneDrive.Authorise(code))
+                                    {
+                                        message = LocRm.GetString("Authorised", lc);
+                                    }
+                                    else
+                                        message = LocRm.GetString("Failed", lc);
                                     break;
                                 case "drive":
-                                    if (Drive.Authorise())
+                                    {
+                                        if (Drive.Authorise(code))
+                                        {
+                                            message = LocRm.GetString("Authorised", lc);
+                                        }
+                                        else
+                                            message = LocRm.GetString("Failed", lc);
+                                    }
+                                    break;
+                                case "flickr":
+                                    if (Flickr.Authorise(code))
                                     {
                                         message = LocRm.GetString("Authorised", lc);
                                     }
                                     else
-                                        error = "Failed";
+                                        message = LocRm.GetString("Failed", lc);
+                                    break;
+                                case "dropbox":
+                                    if (Dropbox.Authorise(code))
+                                    {
+                                        message = LocRm.GetString("Authorised", lc);
+                                    }
+                                    else
+                                        message = LocRm.GetString("Failed", lc);
                                     break;
                                 case "youtube":
-                                    if (YouTubeUploader.Authorise())
                                     {
-                                        message = LocRm.GetString("Authorised", lc);
+                                        if (YouTubeUploader.Authorise(code))
+                                        {
+                                            message = LocRm.GetString("Authorised", lc);
+                                        }
+                                        else
+                                            message = LocRm.GetString("Failed", lc);
                                     }
-                                    else
-                                        error = LocRm.GetString("Failed", lc);
                                     break;
-
                             }
                         }
 
                         resp = string.Format(t, provider, url, message, error);
                     }
                     break;
+                case "getauthoriseurl":
+                    {
+                        string provider = GetVar(sPhysicalFilePath, "provider");
+                        t = "{{\"provider\":\"{0}\",\"url\":\"{1}\",\"message\":\"{2}\",\"error\":\"{3}\"}}";
+                        string url = "", message = "", error = "";
+                        
+                        switch (provider.ToLower())
+                        {
+                            case "flickr":
+                                url = Flickr.GetAuthoriseURL(out error);
+                                break;
+                        }
+                        
+
+                        resp = string.Format(t, provider, url, message, error);
+                    }
+                    break;
                 case "onvifdiscover":
                     {
-                        string un = GetVar(sPhysicalFilePath, "un");
-                        string pwd = GetVar(sPhysicalFilePath, "pwd");
-                        string url = GetVar(sPhysicalFilePath, "surl");
-
-                        Uri u;
-                        if (!Uri.TryCreate(url, UriKind.Absolute, out u))
-                        {
-                            resp = "{\"error\":\""+LocRm.GetString("InvalidURL", lc) +"\"}";
-                            break;
-                        }
-                        var devHolder = new DeviceDescriptionHolder
-                        {
-                            Uris = new[] { u },
-                            Address = u.DnsSafeHost,
-                            Name = u.AbsoluteUri,
-                            DeviceIconUri = null
-                        };
+                        string un = GetVar(cmd, "un");
+                        string pwd = GetVar(cmd, "pwd");
+                        string url = GetVar(cmd, "surl");
 
                         try
                         {
-                            var dev = MainForm.ONVIFDevices.FirstOrDefault(p => p.Address == devHolder.Address);
-                            if (dev == null)
+                            var dev = new ONVIFDevice(url, un, pwd);
+                            int i = 0;
+
+                            foreach (var p in dev.Profiles)
                             {
-                                MainForm.ONVIFDevices.Add(devHolder);
-                            }
-                            else
-                                devHolder = dev;
-
-                            devHolder.Account = new NetworkCredential { UserName = un, Password = pwd };
-                            var sessionFactory = new NvtSessionFactory(devHolder.Account);
-
-                            foreach (var uri in devHolder.Uris)
-                            {
-                                var f = sessionFactory.CreateSession(uri);
-                                devHolder.URL = uri.ToString();
-                                Profile[] profiles;
-                                try
+                                var b = p?.VideoSourceConfiguration?.Bounds;
+                                if (b != null && b.width > 0)
                                 {
-                                    profiles = f.GetProfiles().RunSynchronously();
+                                    resp += string.Format(template, b.width + "x" + b.height, i);
                                 }
-                                catch (Exception ex)
-                                {
-                                    Logger.LogExceptionToFile(ex, "ONVIF");
-                                    throw;
-                                }
-
-                                devHolder.Profiles = profiles;
-                                foreach (var p in profiles)
-                                {
-                                    try
-                                    {
-                                        string streamSize = p.videoEncoderConfiguration.resolution.width + "x" +
-                                                            p.videoEncoderConfiguration.resolution.height;
-                                        resp += string.Format(template, streamSize.JsonSafe(), p.token);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Logger.LogExceptionToFile(ex, "ONVIF");
-                                    }
-
-                                }
+                                i++;
                             }
                         }
                         catch (Exception ex)
                         {
                             resp = "{\"error\":\"" + ex.Message.JsonSafe() + "\"}";
+                        }
+                        Uri u;
+                        if (!Uri.TryCreate(url, UriKind.Absolute, out u))
+                        {
+                            resp = "{\"error\":\"" + LocRm.GetString("InvalidURL", lc) + "\"}";
                             break;
                         }
                         resp = "{\"list\":[" + resp.Trim(',') + "]}";
@@ -585,7 +598,7 @@ namespace iSpyApplication.Server
                                             }
                                             catch (ApplicationException ex)
                                             {
-                                                Logger.LogExceptionToFile(ex, "LocalDevice");
+                                                Logger.LogException(ex, "LocalDevice");
                                             }
                                             break;
                                         case "5":
@@ -635,26 +648,26 @@ namespace iSpyApplication.Server
                                             var ldev = disc.Devices;
                                             foreach (var dev in ldev)
                                             {
-                                                devicelist += string.Format(template, dev.Name.JsonSafe(), dev.Value.JsonSafe());
-                                                if (string.Equals(oc.settings.videosourcestring, dev.Value,
+                                                devicelist += string.Format(template, dev.ToString().JsonSafe(), dev.ToString().JsonSafe());
+                                                if (string.Equals(oc.settings.videosourcestring, dev.ToString(),
                                                     StringComparison.InvariantCultureIgnoreCase))
                                                 {
-                                                    moniker = dev.Value;
-                                                    oc.settings.videosourcestring = dev.Value;
+                                                    moniker = dev.ToString();
+                                                    oc.settings.videosourcestring = dev.ToString();
                                                 }
 
                                             }
                                             if (moniker == "")
                                             {
                                                 if (ldev.Count > 0)
-                                                    moniker = ldev.First().Value;
+                                                    moniker = ldev.First().ToString();
                                             }
                                             if (moniker != "")
                                             {
                                                 disc.Inspect(moniker);
-                                                inputlist = disc.Inputs.Aggregate(inputlist, (current, input) => current + string.Format(template, input.Name.JsonSafe(), input.Value.JsonSafe()));
-                                                videoresolutions = disc.VideoResolutions.Aggregate(videoresolutions, (current, vres) => current + string.Format(template, vres.Name.JsonSafe(), vres.Value.JsonSafe()));
-                                                snapshotresolutions = disc.SnapshotResolutions.Aggregate(snapshotresolutions, (current, sres) => current + string.Format(template, sres.Name.JsonSafe(), sres.Value.JsonSafe()));
+                                                inputlist = disc.Inputs.Aggregate(inputlist, (current, input) => current + string.Format(template, input.ToString().JsonSafe(), input.Value.ToString().JsonSafe()));
+                                                videoresolutions = disc.VideoResolutions.Aggregate(videoresolutions, (current, vres) => current + string.Format(template, vres.ToString().JsonSafe(), vres.ToString().JsonSafe()));
+                                                snapshotresolutions = disc.SnapshotResolutions.Aggregate(snapshotresolutions, (current, sres) => current + string.Format(template, sres.ToString().JsonSafe(), sres.ToString().JsonSafe()));
 
                                                 if (disc.SupportsSnapshots)
                                                 {
@@ -1204,7 +1217,7 @@ namespace iSpyApplication.Server
                                     case "-5":
                                     {
                                         var cc = MainForm.InstanceReference.GetCameraWindow(oid);
-                                        lcomms.AddRange(cc.PTZ.ONVIFPresets.Select(c => new Helper.ListItem(c, c)));
+                                        lcomms.AddRange(cc.PTZ.ONVIFPresets.Select(c => new Helper.ListItem(c.Name, c.Name)));
                                     }
                                         break;
 
@@ -1400,7 +1413,7 @@ namespace iSpyApplication.Server
                                 cmdlist = cw.PTZ.ONVIFPresets.Aggregate(cmdlist,
                                     (current, c) =>
                                         current +
-                                        (string.Format(template, c.JsonSafe(), c.JsonSafe())));
+                                        (string.Format(template, c.Name.JsonSafe(), c.Name.JsonSafe())));
                             }
                             break;
                     }
@@ -1563,7 +1576,7 @@ namespace iSpyApplication.Server
                             }
                             catch (Exception ex)
                             {
-                                Logger.LogExceptionToFile(ex, "Server");
+                                Logger.LogException(ex, "Server");
                                 resp = string.Format(commandFailed, ex.Message);
                             }
                         }
@@ -1617,7 +1630,7 @@ namespace iSpyApplication.Server
                             }
                             catch (Exception ex)
                             {
-                                Logger.LogErrorToFile(LocRm.GetString("Validate_Camera_PTZIPOnly") + ": " +
+                                Logger.LogError(LocRm.GetString("Validate_Camera_PTZIPOnly") + ": " +
                                                       ex.Message, "Server");
                             }
                         }
@@ -1669,7 +1682,7 @@ namespace iSpyApplication.Server
                         }
                         resp = sb.ToString().Trim(',') + "]";
 
-                        var tzo = Convert.ToInt32(System.TimeZone.CurrentTimeZone.GetUtcOffset(new DateTime()).TotalMinutes);
+                        var tzo = Convert.ToInt32(TimeZone.CurrentTimeZone.GetUtcOffset(new DateTime()).TotalMinutes);
                         resp = "{\"timeStamp\":" + timestamp.Ticks + ",\"timezoneOffset\":"+tzo+",\"events\": " + resp + "}";
                     }
                     break;
@@ -2337,12 +2350,7 @@ namespace iSpyApplication.Server
                             PopulateObject(d, c);
                             
                             var vl = MainForm.InstanceReference.GetVolumeLevel(c.id);
-                            if (vl != null)
-                            {
-                                vl.Disable();
-                                vl.Enable();
-                            }
-                            
+                            vl?.Disable();
                         }
                         resp = "{\"actionResult\":\"waiteditobject\"}";
                     }
@@ -2356,93 +2364,11 @@ namespace iSpyApplication.Server
 
                                 if (c.settings.sourceindex == 9)
                                 {
-                                    string url = c.settings.onvifident;
-
-                                    Uri u;
-                                    if (!Uri.TryCreate(url, UriKind.Absolute, out u))
-                                    {
-                                        resp = "{\"error\":\""+LocRm.GetString("InvalidURI", lc) +"\"}";
-                                        break;
-                                    }
-                                    string addr = u.DnsSafeHost;
-                                    var dev = MainForm.ONVIFDevices.FirstOrDefault(p => p.Address == addr);
-                                    if (dev == null)
-                                    {
-                                        if (NV(c.settings.namevaluesettings, "profileid") == "")
-                                            c.settings.namevaluesettings = NVSet(c.settings.namevaluesettings, "profileid", "0");
-                                    }
-                                    else
-                                    {
-                                        TransportProtocol tp;
-                                        if (!Enum.TryParse(NV(c.settings.namevaluesettings, "transport"), true, out tp))
-                                            tp = TransportProtocol.rtsp;
-
-                                        dev.Account = new NetworkCredential
-                                        {
-                                            UserName = c.settings.login,
-                                            Password = c.settings.password
-                                        };
-                                        var sessionFactory = new NvtSessionFactory(dev.Account);
-                                        var profilename = NV(c.settings.namevaluesettings, "profilename");
-
-                                        foreach (var uri in dev.Uris)
-                                        {
-                                            var f = sessionFactory.CreateSession(uri);
-                                            dev.URL = uri.ToString();
-                                            Profile[] profiles;
-                                            try
-                                            {
-                                                profiles = f.GetProfiles().RunSynchronously();
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                Logger.LogExceptionToFile(ex, "ONVIF");
-                                                continue;
-                                            }
-
-                                            dev.Profiles = profiles;
-                                            var strSetup = new StreamSetup { transport = new Transport() };
-                                            strSetup.transport.protocol = tp;
-                                            int i = 0;
-                                            foreach (var p in profiles)
-                                            {
-                                                try
-                                                {
-                                                    if (p.token == profilename)
-                                                    {
-                                                        var strUri = f.GetStreamUri(strSetup, p.token).RunSynchronously();
-                                                        string urlAuth = strUri.uri.Replace("://", "://[USERNAME]:[PASSWORD]@");
-                                                        string streamSize = p.videoEncoderConfiguration.resolution.width + "x" + p.videoEncoderConfiguration.resolution.height;
-
-                                                        c.settings.videosourcestring = urlAuth;
-                                                        c.settings.namevaluesettings = NVSet(c.settings.namevaluesettings, "profileid", i.ToString(CultureInfo.InvariantCulture));
-                                                        c.settings.namevaluesettings = NVSet(c.settings.namevaluesettings, "streamsize", streamSize);
-
-                                                        string[] sz = streamSize.Split('x');
-                                                        c.settings.desktopresizewidth = Convert.ToInt32(sz[0]);
-                                                        c.settings.desktopresizeheight = Convert.ToInt32(sz[1]);
-
-                                                        break;
-                                                    }
-                                                    i++;
-                                                }
-                                                catch (Exception ex)
-                                                {
-                                                    Logger.LogExceptionToFile(ex, "ONVIF");
-                                                }
-
-                                            }
-                                        }
-                                    }
                                     c.ptz = -5;
                                 }
-                                
+
                                 var cw = MainForm.InstanceReference.GetCameraWindow(c.id);
-                                if (cw != null)
-                                {
-                                    cw.Disable();
-                                    cw.Enable();
-                                }
+                                cw?.Disable();
                                 resp = "{\"actionResult\":\"waiteditobject\"}";
                             }
 
@@ -2456,7 +2382,7 @@ namespace iSpyApplication.Server
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "JSON Parser");
+                Logger.LogException(ex, "JSON Parser");
             }
             if (saveObjects)
             {
@@ -2466,7 +2392,7 @@ namespace iSpyApplication.Server
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogExceptionToFile(ex, "JSON Parser");
+                    Logger.LogException(ex, "JSON Parser");
                 }
             }
 
@@ -2530,9 +2456,9 @@ namespace iSpyApplication.Server
                 dynamic d = PopulateResponse(apiJson, null, lc);
                 return JsonConvert.SerializeObject(d);
             }
-            catch (Exception ex)
+            catch
             {
-                Logger.LogExceptionToFile(new Exception(apiJson),"BuildAPIPopulate");
+                Logger.LogException(new Exception(apiJson),"BuildAPIPopulate");
                 throw;
             }
         }
@@ -2829,7 +2755,7 @@ namespace iSpyApplication.Server
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex, "Conversion from web setting");
+                        Logger.LogException(ex, "Conversion from web setting");
                     }
                     i++;
                 }
@@ -2848,7 +2774,7 @@ namespace iSpyApplication.Server
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogExceptionToFile(ex, "Conversion from web setting");
+                    Logger.LogException(ex, "Conversion from web setting");
                 }
             }
         }

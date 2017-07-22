@@ -6,11 +6,10 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.Remoting.Channels;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Windows.Forms;
+using iSpyApplication.Controls;
 using iSpyApplication.Utilities;
 
 namespace iSpyApplication
@@ -40,6 +39,74 @@ namespace iSpyApplication
             }
         }
 
+        public static string RTSPMode(int mode)
+        {
+            switch (mode)
+            {
+                case 2:
+                    return "udp";
+                case 3:
+                    return "udp_multicast";
+                case 4:
+                    return "http";
+                default:
+                    return "tcp";
+            }
+        }
+
+        public static string NVLookup(CameraWindow c, string name)
+        {
+            var t = c.Camobject.settings.namevaluesettings.Split(',').ToList();
+            var nv = t.FirstOrDefault(p => p.ToLowerInvariant().StartsWith(name.ToLowerInvariant() + "="));
+            if (nv == null)
+                return "";
+            return nv.Split('=')[1].Trim();
+
+        }
+
+        public static string GetLevelDataPoints(StringBuilder motionData)
+        {
+            var elements = motionData.ToString().Trim(',').Split(',');
+            if (elements.Length <= 1200)
+                return String.Join(",", elements);
+
+            var interval = (elements.Length / 1200d);
+            var newdata = new StringBuilder(motionData.Length);
+            var iIndex = 0;
+            double dMax = 0;
+            var tMult = 1;
+            double target = 0;
+
+            for (var i = 0; i < elements.Length; i++)
+            {
+                try
+                {
+                    var dTemp = Convert.ToDouble(elements[i]);
+                    if (dTemp > dMax)
+                    {
+                        dMax = dTemp;
+                        iIndex = i;
+                    }
+                    if (i > target)
+                    {
+                        newdata.Append(elements[iIndex] + ",");
+                        tMult++;
+                        target = tMult * interval;
+                        dMax = 0;
+
+                    }
+                }
+                catch (Exception)
+                {
+                    //extremely long recordings can break
+                    break;
+                }
+            }
+            string r = newdata.ToString().Trim(',');
+            newdata.Clear();
+            return r;
+
+        }
         public static Rectangle GetArea(Rectangle container, int imageW, int imageH)
         {
             int contH = container.Height;
@@ -254,7 +321,7 @@ namespace iSpyApplication
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex);
+                        Logger.LogException(ex);
                     }
                 }
             }
@@ -279,7 +346,7 @@ namespace iSpyApplication
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex);
+                        Logger.LogException(ex);
                     }
                 }
             }
@@ -365,7 +432,7 @@ namespace iSpyApplication
                     }
                     catch(Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex);
+                        Logger.LogException(ex);
                     }
                 }
 
@@ -387,7 +454,7 @@ namespace iSpyApplication
                     }
                     catch(Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex);
+                        Logger.LogException(ex);
                     }
                 }
                 System.Array.ForEach(Directory.GetFiles(dir + "video\\" +
@@ -645,14 +712,33 @@ namespace iSpyApplication
 
             return t;
         }
-
-        public static bool TestHttpurl(string source, string cookies, string login, string password)
+        public static bool TestAddress(Uri addr, ManufacturersManufacturerUrl u, string Username, string Password)
+        {
+            bool found;
+            switch (u.prefix.ToUpper())
+            {
+                case "HTTP://":
+                case "HTTPS://":
+                    found = TestHttpUrl(addr, u.cookies, Username, Password);
+                    break;
+                case "RTSP://":
+                    found = TestRtspUrl(addr, Username, Password);
+                    break;
+                default:
+                    found = TestSocket(addr);
+                    break;
+            }
+            return found;
+        }
+        
+        private static bool TestHttpUrl(Uri source, string cookies, string login, string password)
         {
             bool b = false;
             HttpStatusCode sc = 0;
 
             HttpWebRequest req;
-            var res = ConnectionFactory.GetResponse(source, cookies, "", "", login, password, "GET", "", false, out req);
+            ConnectionFactory connectionFactory = new ConnectionFactory();
+            var res = connectionFactory.GetResponse(source.ToString(), cookies, "", "", login, password, "GET", "","", false, out req);
             if (res != null)
             {
                 sc = res.StatusCode;
@@ -667,12 +753,29 @@ namespace iSpyApplication
                 res.Close();
             }
 
-            Logger.LogMessageToFile("Status " + sc + " at " + source, "Uri Checker");
+            Logger.LogMessage("Status " + sc + " at " + source, "Uri Checker");
 
             return b;
         }
 
-        public static bool TestRtspurl(Uri uri, string login, string password)
+        private static bool TestSocket(Uri uri)
+        {
+            try
+            {
+                using (TcpClient tcpClient = new TcpClient())
+                {
+                    tcpClient.Connect(uri.Host, uri.Port);
+                    tcpClient.GetStream();
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TestRtspUrl(Uri uri, string login, string password)
         {
             bool b = false;
             try
@@ -707,13 +810,13 @@ namespace iSpyApplication
                     {
                         b = true;
                     }
-                    Logger.LogMessageToFile("RTSP attempt: " + resp + " at " + uri, "Uri Checker");
+                    Logger.LogMessage("RTSP attempt: " + resp + " at " + uri, "Uri Checker");
                 }
                 sock.Close();
             }
             catch (Exception ex)
             {
-                Logger.LogErrorToFile(ex.Message, "Uri Checker");
+                Logger.LogError(ex.Message, "Uri Checker");
             }
             return b;
         }

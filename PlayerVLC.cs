@@ -12,7 +12,6 @@ using Declarations.Players;
 using Implementation;
 using iSpyApplication.Controls;
 using iSpyApplication.Utilities;
-using onvif.services;
 
 namespace iSpyApplication
 {
@@ -119,7 +118,7 @@ namespace iSpyApplication
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogExceptionToFile(ex);
+                        Logger.LogException(ex);
                         MessageBox.Show(this, LocRm.GetString("CouldNotOpen")+Environment.NewLine + filename);
                         return;
                     }
@@ -329,7 +328,7 @@ namespace iSpyApplication
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
             }
         }
 

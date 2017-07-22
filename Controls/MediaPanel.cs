@@ -75,7 +75,7 @@ namespace iSpyApplication.Controls
         {
             if (e.Button == MouseButtons.Left)
             {
-                SelectStart = e.Location;
+                SelectStart = SelectEnd = e.Location;
             }
         }
 
@@ -123,6 +123,14 @@ namespace iSpyApplication.Controls
                 SelectEnd = e.Location;
                 Invalidate();
             }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+
+            if (ClientRectangle.Contains(PointToClient(MousePosition)))
+                return;
+            base.OnMouseLeave(e);
         }
     }
 }

@@ -102,7 +102,7 @@ namespace iSpyApplication.Vision
             get { return _processor; }
             set
             {
-                lock ( _sync )
+               // lock ( _sync )
                 {
                     _processor = value;
                 }
@@ -127,7 +127,8 @@ namespace iSpyApplication.Vision
             set
             {
                 _motionZones = value;
-                CreateMotionZonesFrame( );
+                if (value!=null)
+                    CreateMotionZonesFrame( );
             }
         }
 
@@ -147,7 +148,7 @@ namespace iSpyApplication.Vision
             get { return _zonesFrame; }
             set
             {
-                lock (_sync)
+                //lock (_sync)
                 {
                     _area = 0;
                     // free previous motion zones frame
@@ -327,12 +328,16 @@ namespace iSpyApplication.Vision
                 }
 
                 // call motion post processing
-                if ((_processor != null) && (_detector.MotionFrame != null))
-                {
-                    _processor.ProcessFrame(videoFrame, _detector.MotionFrame);
-                }
-
+                ApplyOverlay(videoFrame);
                 return motionLevel;                
+            }
+        }
+
+        public void ApplyOverlay(UnmanagedImage videoFrame)
+        {
+            if ((_processor != null) && (_detector?.MotionFrame != null))
+            {
+                _processor.ProcessFrame(videoFrame, _detector.MotionFrame);
             }
         }
 
@@ -346,7 +351,7 @@ namespace iSpyApplication.Vision
         /// 
         public void Reset( )
         {
-            lock ( _sync )
+           // lock ( _sync )
             {
                 _detector?.Reset( );
                 _processor?.Reset( );

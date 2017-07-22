@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace iSpyApplication.Utilities
 {
-    public static class ConnectionFactory
+    public class ConnectionFactory
     {
 
         private static string CalculateMd5Hash(
@@ -52,7 +52,8 @@ namespace iSpyApplication.Utilities
 
         }
 
-        public static HttpWebResponse GetResponse(string source, string method, out HttpWebRequest request)
+
+        public HttpWebResponse GetResponse(string source, string method, string postData, out HttpWebRequest request)
         {
             var uri = new Uri(source);
             string username = "", password = "";
@@ -65,6 +66,10 @@ namespace iSpyApplication.Utilities
                     password = lp[1];
                 }
             }
+            var encoding = new ASCIIEncoding();
+
+            byte[] data = encoding.GetBytes(postData);
+
             var co = new ConnectionOptions
             {
                 channel = "",
@@ -77,14 +82,17 @@ namespace iSpyApplication.Utilities
                 source = source,
                 userAgent = "",
                 username = username,
-                useSeparateConnectionGroup = false,
-                useHttp10 = false
+                useSeparateConnectionGroup = true,
+                useHttp10 = false,
+                data = data
 
             };
             return GetResponse(co, out request);
         }
-        public static HttpWebResponse GetResponse(string source, string cookies, string headers, string userAgent, string username, string password, string method, string channel, bool useHttp10, out HttpWebRequest request)
+
+        public HttpWebResponse GetResponse(string source, string cookies, string headers, string userAgent, string username, string password, string method, string channel, string data, bool useHttp10, out HttpWebRequest request)
         {
+            Encoding enc = new ASCIIEncoding();
             var co = new ConnectionOptions
             {
                 channel = channel,
@@ -97,8 +105,9 @@ namespace iSpyApplication.Utilities
                 source = source,
                 userAgent = userAgent,
                 username = username,
-                useSeparateConnectionGroup = false,
-                useHttp10 = useHttp10
+                useSeparateConnectionGroup = true,
+                useHttp10 = useHttp10,
+                data = enc.GetBytes(data)
             };
             return GetResponse(co, out request);
         }
@@ -107,19 +116,15 @@ namespace iSpyApplication.Utilities
 
         private static void AddDigest(DigestConfig digest)
         {
-            lock (Lock)
-            {
-                Digests.Add(digest);
-            }
+            Digests.Add(digest);            
         }
 
         private static DigestConfig GetDigest(string host)
         {
-            lock (Lock)
-            {
-                Digests.RemoveAll(p => p.Created > DateTime.UtcNow.AddHours(-1));
-                return Digests.FirstOrDefault(p => p.Host == host);
-            }
+            
+            Digests.RemoveAll(p => p.Created > DateTime.UtcNow.AddHours(-1));
+            return Digests.FirstOrDefault(p => p.Host == host);
+            
         }
 
         private class DigestConfig
@@ -135,14 +140,14 @@ namespace iSpyApplication.Utilities
             }
         }
 
-        private static HttpWebResponse GetResponse(ConnectionOptions co, out HttpWebRequest request)
+        private HttpWebResponse GetResponse(ConnectionOptions co, out HttpWebRequest request)
         {
             request = GetRequest(co);
             HttpWebResponse response = null;
 
             try
             {
-                if (co.data != null)
+                if (co.data!=null && co.data.Length>0)
                 {
                     using (var stream = request.GetRequestStream())
                     {
@@ -153,22 +158,25 @@ namespace iSpyApplication.Utilities
             }
             catch (WebException ex)
             {
-                // Try to fix a 401 exception by adding a Authorization header
-                if (ex.Response == null || ((HttpWebResponse)ex.Response).StatusCode != HttpStatusCode.Unauthorized)
-                    return null;
                 response?.Close();
+                // Try to fix a 401 exception by adding a Authorization header
+                if (ex.Response == null || ((HttpWebResponse) ex.Response).StatusCode != HttpStatusCode.Unauthorized)
+                {
+                    return null;
+                }
                 response = TryDigestRequest(co, ex);
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "Connection Factory");
+                Logger.LogException(ex, "Connection Factory");
+                response?.Close();
                 response = null;
             }
 
             return response;
         }
 
-        public static void BeginGetResponse(ConnectionOptions co, EventHandler successCallback)
+        public void BeginGetResponse(ConnectionOptions co, EventHandler successCallback)
         {
             var request = GetRequest(co);
             co.callback += successCallback;
@@ -177,7 +185,7 @@ namespace iSpyApplication.Utilities
             var myRequestState = new RequestState { Request = request, ConnectionOptions = co };
             try
             {
-                if (co.data != null)
+                if (co.data != null && co.data.Length > 0)
                 {
                     using (var stream = request.GetRequestStream())
                     {
@@ -189,13 +197,13 @@ namespace iSpyApplication.Utilities
             catch (Exception ex)
             {
                 co.ExecuteCallback(false);
-                Logger.LogExceptionToFile(ex, "Connection Factory");
+                Logger.LogException(ex, "Connection Factory");
             }
 
             
         }
 
-        private static void FinishRequest(IAsyncResult result)
+        private void FinishRequest(IAsyncResult result)
         {
             var myRequestState = (RequestState)result.AsyncState;
             WebRequest myWebRequest = myRequestState.Request;
@@ -213,7 +221,7 @@ namespace iSpyApplication.Utilities
             {
                 if (ex.Response == null || ((HttpWebResponse)ex.Response).StatusCode != HttpStatusCode.Unauthorized)
                 {
-                    Logger.LogExceptionToFile(ex, "Connection Factory");
+                    Logger.LogException(ex, "Connection Factory");
                     myRequestState.ConnectionOptions.ExecuteCallback(false);
                 }
                 else
@@ -224,13 +232,13 @@ namespace iSpyApplication.Utilities
             catch (Exception ex)
             {
                 myRequestState.ConnectionOptions.ExecuteCallback(false);
-                Logger.LogExceptionToFile(ex, "Connection Factory");
+                Logger.LogException(ex, "Connection Factory");
             }
         }
 
-        private static HttpWebResponse TryDigestRequest(ConnectionOptions co, WebException ex)
+        private HttpWebResponse TryDigestRequest(ConnectionOptions co, WebException ex)
         {
-            HttpWebResponse response;
+            HttpWebResponse response = null;
             try
             {
                 var wwwAuthenticateHeader = ex.Response.Headers["WWW-Authenticate"];
@@ -264,19 +272,21 @@ namespace iSpyApplication.Utilities
             catch (ApplicationException)
             {
                 //headers missing for digest
+                response?.Close();
                 response = null;
                 co.ExecuteCallback(false);
             }
             catch (Exception ex2)
             {
-                Logger.LogExceptionToFile(ex2, "Digest");
+                Logger.LogException(ex2, "Digest");
+                response?.Close();
                 response = null;
                 co.ExecuteCallback(false);
             }
             return response;
         }
 
-        public static HttpWebRequest GetRequest(ConnectionOptions co)
+        public HttpWebRequest GetRequest(ConnectionOptions co)
         {
             Uri uri;
             if (Uri.TryCreate(co.source, UriKind.Absolute, out uri))
@@ -303,29 +313,17 @@ namespace iSpyApplication.Utilities
             {
                 case "PUT":
                 case "POST":
-                    string postData = "";
-                    var i = co.source.IndexOf("?", StringComparison.Ordinal);
-                    if (i > -1 && i < co.source.Length)
-                        postData = co.source.Substring(i + 1);
-
-
-                    var encoding = new ASCIIEncoding();
-
-                    byte[] data = encoding.GetBytes(postData);
 
                     request.Method = co.method;
                     request.ContentType = "application/x-www-form-urlencoded";
-                    request.ContentLength = data.Length;
-                    co.data = data;
+                    request.ContentLength = co.data.Length;
 
                     break;
             }
             return request;
         }
 
-        private static readonly object Lock = new object();
-
-        private static HttpWebRequest GenerateRequest(ConnectionOptions co)
+        private HttpWebRequest GenerateRequest(ConnectionOptions co)
         {
             var request = (HttpWebRequest)WebRequest.Create(co.source);
 
@@ -357,7 +355,7 @@ namespace iSpyApplication.Utilities
                 request.Credentials = new NetworkCredential(co.username, co.password);
             // set connection group name
             if (co.useSeparateConnectionGroup)
-                request.ConnectionGroupName = request.GetHashCode().ToString(CultureInfo.InvariantCulture);
+                request.ConnectionGroupName = Guid.NewGuid().ToString();
             // force basic authentication through extra headers if required
 
             var authInfo = "";

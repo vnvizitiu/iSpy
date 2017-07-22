@@ -1,4 +1,6 @@
-﻿namespace iSpyApplication.Sources.Video
+﻿using System;
+
+namespace iSpyApplication.Sources.Video
 {
 
     /// <summary>
@@ -7,7 +9,7 @@
     /// 
     /// <remarks>The interface describes common methods for different type of video sources.</remarks>
     /// 
-    public interface IVideoSource
+    public interface IVideoSource:IDisposable
     {
         /// <summary>
         /// New frame event.
@@ -42,25 +44,7 @@
         /// 
         string Source { get; }
 
-        /// <summary>
-        /// Received frames count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of frames the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        int FramesReceived { get; }
-
-        /// <summary>
-        /// Received bytes count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of bytes the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        long BytesReceived { get; }
+        int FrameInterval { get; }
 
         /// <summary>
         /// State of the video source.
@@ -80,23 +64,7 @@
         /// 
         void Start();
 
-        /// <summary>
-        /// Signal video source to stop its work.
-        /// </summary>
-        /// 
-        /// <remarks>Signals video source to stop its background thread, stop to
-        /// provide new frames and free resources.</remarks>
-        /// 
-        void SignalToStop();
-
-        /// <summary>
-        /// Wait for video source has stopped.
-        /// </summary>
-        /// 
-        /// <remarks>Waits for video source stopping after it was signalled to stop using
-        /// <see cref="SignalToStop"/> method.</remarks>
-        /// 
-        void WaitForStop();
+        void Restart();
 
         /// <summary>
         /// Stop video source.

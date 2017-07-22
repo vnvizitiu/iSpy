@@ -11,9 +11,10 @@ namespace iSpyApplication.Sources.Audio.streams
     public class WavStream : IAudioSource, IDisposable
     {
         private string _source;
-        private ManualResetEvent _stopEvent;
+        private ManualResetEvent _abort;
+        private ReasonToFinishPlaying _res = ReasonToFinishPlaying.DeviceLost;
         private bool _listening;
-
+        public bool IsAudio => true;
         private Thread _thread;
         private BufferedWaveProvider _waveProvider;
         private SampleChannel _sampleChannel;
@@ -171,7 +172,7 @@ namespace iSpyApplication.Sources.Audio.streams
             _sampleChannel = new SampleChannel(_waveProvider);
             _sampleChannel.PreVolumeMeter += SampleChannelPreVolumeMeter;
 
-            _stopEvent = new ManualResetEvent(false);
+            _res = ReasonToFinishPlaying.DeviceLost;
             _thread = new Thread(StreamWav)
                       {
                           Name = "WavStream Audio Receiver (" + _source + ")"
@@ -180,14 +181,14 @@ namespace iSpyApplication.Sources.Audio.streams
         }
 
         
-
+        private readonly ConnectionFactory _connectionFactory = new ConnectionFactory();
         private void StreamWav()
         {
-            var res = ReasonToFinishPlaying.StoppedByUser;
+            _abort = new ManualResetEvent(false);
             HttpWebRequest request = null;
             try
             {
-                using (HttpWebResponse resp = ConnectionFactory.GetResponse(_source,"GET", out request))
+                using (HttpWebResponse resp = _connectionFactory.GetResponse(_source,"GET","", out request))
                 {
                     //1/4 of a second, 16 byte buffer
                     var data = new byte[((RecordingFormat.SampleRate/4)*2)*RecordingFormat.Channels];
@@ -197,7 +198,7 @@ namespace iSpyApplication.Sources.Audio.streams
                         if (stream == null)
                             throw new Exception("Stream is null");
 
-                        while (!_stopEvent.WaitOne(10, false) && !MainForm.ShuttingDown)
+                        while (!_abort.WaitOne(20) && !MainForm.ShuttingDown)
                         {
                             var da = DataAvailable;
                             if (da != null)
@@ -230,13 +231,12 @@ namespace iSpyApplication.Sources.Audio.streams
             }
             catch (Exception ex)
             {
-                res = ReasonToFinishPlaying.DeviceLost;
-                Logger.LogExceptionToFile(ex,"WavStream");
+                _res = ReasonToFinishPlaying.DeviceLost;
+                Logger.LogException(ex,"WavStream");
             }
-            finally
-            {
-                AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(res) );
-            }
+
+            AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+            _abort.Close();
         }
 
         void SampleChannelPreVolumeMeter(object sender, StreamVolumeEventArgs e)
@@ -244,47 +244,25 @@ namespace iSpyApplication.Sources.Audio.streams
             LevelChanged?.Invoke(this, new LevelChangedEventArgs(e.MaxSampleValues));
         }
 
-        /// <summary>
-        /// Stop audio source.
-        /// </summary>
-        /// 
-        /// <remarks><para>Stops audio source.</para>
-        /// </remarks>
-        /// 
         public void Stop()
         {
             if (IsRunning)
             {
-                _stopEvent.Set();
-                try
-                {
-                    while (_thread != null && !_thread.Join(0))
-                        Application.DoEvents();
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                Free();
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                _abort?.Set();
+            }
+            else
+            {
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
             }
         }
 
-        /// <summary>
-        /// Free resource.
-        /// </summary>
-        /// 
-        private void Free()
+        public void Restart()
         {
-            _thread = null;
-
-            // release events
-            if (_stopEvent != null)
-            {
-                _stopEvent.Close();
-                _stopEvent.Dispose();
-            }
-            _stopEvent = null;
+            if (!IsRunning) return;
+            _res = ReasonToFinishPlaying.Restart;
+            _abort?.Set();
         }
 
         private bool _disposed;
@@ -292,7 +270,6 @@ namespace iSpyApplication.Sources.Audio.streams
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         // Protected implementation of Dispose pattern. 
@@ -303,7 +280,6 @@ namespace iSpyApplication.Sources.Audio.streams
 
             if (disposing)
             {
-                _stopEvent?.Close();
             }
 
             // Free any unmanaged objects here. 

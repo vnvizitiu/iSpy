@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using iSpyApplication.Controls;
 using iSpyApplication.Sources.Audio;
 using iSpyApplication.Utilities;
 using NAudio.Wave;
@@ -23,24 +24,21 @@ namespace iSpyApplication.Sources.Video
     /// Camera - Plugin
     /// Camera - RunPlugin
     /// </remarks>
-    public class KinectNetworkStream : IVideoSource, IAudioSource, ISupportsAudio, IDisposable
+    public class KinectNetworkStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
     {
-        private string _source;
+        private readonly objectsCamera _source;
         private string _login;
         private string _password;
         private IWebProxy _proxy;
-        private int _framesReceived;
-        private long _bytesReceived;
         private bool _useSeparateConnectionGroup = true;
         private int _requestTimeout = 10000;
         private const int BufSize = 1024 * 1024*2;
         private const int ReadSize = 1024;
         private bool _usehttp10;
+        private ManualResetEvent _abort;
+        private ReasonToFinishPlaying _res = ReasonToFinishPlaying.DeviceLost;
 
         private Thread _thread;
-        private ManualResetEvent _stopEvent;
-        private ManualResetEvent _reloadEvent;
-
         private string _userAgent = "Mozilla/5.0";
 
         #region Audio
@@ -162,6 +160,7 @@ namespace iSpyApplication.Sources.Video
             set { _usehttp10 = value; }
         }
 
+
         /// <summary>
         /// Video source.
         /// </summary>
@@ -170,13 +169,10 @@ namespace iSpyApplication.Sources.Video
         /// 
         public string Source
         {
-            get { return _source; }
+            get { return _source.settings.videosourcestring; }
             set
             {
-                _source = value;
-                // signal to reload
-                if (_thread != null)
-                    _reloadEvent.Set();
+                _source.settings.videosourcestring = value;
             }
         }
 
@@ -243,42 +239,6 @@ namespace iSpyApplication.Sources.Video
         }
 
         /// <summary>
-        /// Received frames count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of frames the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        public int FramesReceived
-        {
-            get
-            {
-                int frames = _framesReceived;
-                _framesReceived = 0;
-                return frames;
-            }
-        }
-
-        /// <summary>
-        /// Received bytes count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of bytes the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        public long BytesReceived
-        {
-            get
-            {
-                long bytes = _bytesReceived;
-                _bytesReceived = 0;
-                return bytes;
-            }
-        }
-
-        /// <summary>
         /// Request timeout value.
         /// </summary>
         /// 
@@ -319,17 +279,11 @@ namespace iSpyApplication.Sources.Video
         /// Initializes a new instance of the <see cref="KinectNetworkStream"/> class.
         /// </summary>
         /// 
-        public KinectNetworkStream() { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="KinectNetworkStream"/> class.
-        /// </summary>
-        /// 
         /// <param name="source">URL, which provides MJPEG stream.</param>
         /// 
-        public KinectNetworkStream(string source)
+        public KinectNetworkStream(CameraWindow source): base(source)
         {
-            _source = source;
+            _source = source.Camobject;
         }
 
         /// <summary>
@@ -347,18 +301,13 @@ namespace iSpyApplication.Sources.Video
             if (!IsRunning)
             {
                 // check source
-                if (string.IsNullOrEmpty(_source))
+                if (string.IsNullOrEmpty(_source.settings.videosourcestring))
                     throw new ArgumentException("Video source is not specified.");
 
-                _framesReceived = 0;
-                _bytesReceived = 0;
-
-                // create events
-                _stopEvent = new ManualResetEvent(false);
-                _reloadEvent = new ManualResetEvent(false);
+                _res = ReasonToFinishPlaying.DeviceLost;
 
                 // create and start new thread
-                _thread = new Thread(WorkerThread) {Name = _source, IsBackground = true};
+                _thread = new Thread(WorkerThread) {Name = _source.settings.videosourcestring, IsBackground = true};
                 _thread.Start();
             }
         }
@@ -370,116 +319,47 @@ namespace iSpyApplication.Sources.Video
         /// <remarks>Signals video source to stop its background thread, stop to
         /// provide new frames and free resources.</remarks>
         /// 
-        public void SignalToStop()
-        {
-            // stop thread
-            if (_thread != null)
-            {
-                // signal to stop
-                _stopEvent.Set();
-            }
-        }
-
-        /// <summary>
-        /// Wait for video source has stopped.
-        /// </summary>
-        /// 
-        /// <remarks>Waits for source stopping after it was signalled to stop using
-        /// <see cref="SignalToStop"/> method.</remarks>
-        /// 
-        public void WaitForStop()
-        {
-            if (_sampleChannel != null)
-                _sampleChannel.PreVolumeMeter -= SampleChannelPreVolumeMeter;
-
-            if (IsRunning)
-            {
-                // wait for thread stop
-                _stopEvent.Set();
-                try
-                {
-                    _thread.Join(MainForm.ThreadKillDelay);
-                    if (_thread != null && !_thread.Join(TimeSpan.Zero))
-                        _thread.Abort();
-                }
-                catch
-                {
-                }
-                Free();
-
-                if (_waveProvider?.BufferedBytes > 0)
-                    _waveProvider.ClearBuffer();
-
-                Listening = false;
-            }
-        }
-
-        /// <summary>
-        /// Stop video source.
-        /// </summary>
-        /// 
-        /// <remarks><para>Stops video source aborting its thread.</para>
-        /// 
-        /// <para><note>Since the method aborts background thread, its usage is highly not preferred
-        /// and should be done only if there are no other options. The correct way of stopping camera
-        /// is <see cref="SignalToStop">signaling it stop</see> and then
-        /// <see cref="WaitForStop">waiting</see> for background thread's completion.</note></para>
-        /// </remarks>
-        /// 
         public void Stop()
         {
-            WaitForStop();
+            if (IsRunning)
+            {
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                _abort?.Set();
+            }
+            else
+            {
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+            }
         }
 
-        /// <summary>
-        /// Free resource.
-        /// </summary>
-        /// 
-        private void Free()
+        public void Restart()
         {
-            _thread = null;
-
-            // release events
-            if (_stopEvent != null)
-            {
-                _stopEvent.Close();
-                _stopEvent.Dispose();
-                _stopEvent = null;
-            }
-            _stopEvent = null;
-            if (_reloadEvent != null)
-            {
-                _reloadEvent.Close();
-                _reloadEvent.Dispose();
-                _reloadEvent = null;
-            }
-            _reloadEvent = null;
+            if (!IsRunning)
+                return;
+            _res = ReasonToFinishPlaying.Restart;
+            _abort?.Set();
         }
+
+       
 
         // Worker thread
         private void WorkerThread()
         {
+            _abort = new ManualResetEvent(false);
             // buffer to read stream
             var buffer = new byte[BufSize];
             var encoding = new ASCIIEncoding();
-            var res = ReasonToFinishPlaying.StoppedByUser;
-            while (!_stopEvent.WaitOne(0, false) && !MainForm.ShuttingDown)
+            while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
             {
-                // reset reload event
-                _reloadEvent.Reset();
-
-                // HTTP web request
                 HttpWebRequest request = null;
-                // web responce
                 WebResponse response = null;
-                // stream for MJPEG downloading
                 Stream stream = null;
-                // boundary betweeen images (string and binary versions)
 
                 try
                 {
                     // create request
-                    request = (HttpWebRequest)WebRequest.Create(_source);
+                    request = (HttpWebRequest)WebRequest.Create(_source.settings.videosourcestring);
                     // set user agent
                     if (_userAgent != null)
                     {
@@ -523,7 +403,7 @@ namespace iSpyApplication.Sources.Video
 
                     bool hasaudio = false;                   
 
-                    while ((!_stopEvent.WaitOne(0, false)) && (!_reloadEvent.WaitOne(0, false)))
+                    while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
                     {
 
                         int read;
@@ -554,7 +434,7 @@ namespace iSpyApplication.Sources.Video
                             if (br != -1)
                             {
                                 var arr = new byte[br];
-                                System.Array.Copy(buffer, startPacket, arr, 0, br - startPacket);
+                                Array.Copy(buffer, startPacket, arr, 0, br - startPacket);
                                 string s = Encoding.ASCII.GetString(arr);
                                 int k = s.IndexOf("Content-type: ", StringComparison.Ordinal);
                                 if (k!=-1)
@@ -568,21 +448,22 @@ namespace iSpyApplication.Sources.Video
                                     case "image/jpeg":
                                         try
                                         {
-
-                                            
-                                            using (var ms = new MemoryStream(buffer, br + 4, endPacket - br - 8))
+                                            if (EmitFrame)
                                             {
-                                                using (var bmp = (Bitmap)Image.FromStream(ms))
+                                                using (var ms = new MemoryStream(buffer, br + 4, endPacket - br - 8))
                                                 {
-                                                    var dae = new NewFrameEventArgs(bmp);
-                                                    nf.Invoke(this, dae);
+                                                    using (var bmp = (Bitmap) Image.FromStream(ms))
+                                                    {
+                                                        var dae = new NewFrameEventArgs(bmp);
+                                                        nf.Invoke(this, dae);
+                                                    }
                                                 }
                                             }
                                         }
                                         catch (Exception ex)
                                         {
                                             //sometimes corrupted packets come through...
-                                            Logger.LogExceptionToFile(ex,"KinectNetwork");
+                                            Logger.LogException(ex,"KinectNetwork");
                                         }
 
 
@@ -651,11 +532,10 @@ namespace iSpyApplication.Sources.Video
                             }
 
                             ttl -= endPacket;
-                            System.Array.Copy(buffer, endPacket, buffer, 0, ttl);
+                            Array.Copy(buffer, endPacket, buffer, 0, ttl);
                             startPacket = -1;
                             endPacket = -1;
                         }
-
                     }
                 }
                 catch (ApplicationException)
@@ -671,11 +551,12 @@ namespace iSpyApplication.Sources.Video
                 catch (Exception ex)
                 {
                     // provide information to clients
-                    Logger.LogExceptionToFile(ex, "KinectNetwork");
-                    res = ReasonToFinishPlaying.DeviceLost;
+                    Logger.LogException(ex, "KinectNetwork");
+                    _res = ReasonToFinishPlaying.DeviceLost;
+                    _abort.WaitOne(250);
                     break;
                     // wait for a while before the next try
-                    //Thread.Sleep(250);
+                    
                 }
                 finally
                 {
@@ -684,13 +565,15 @@ namespace iSpyApplication.Sources.Video
                     stream?.Close();
                     response?.Close();
                 }
-
-                // need to stop ?
-                if (_stopEvent.WaitOne(0, false))
-                    break;
             }
 
-            PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(res));
+            if (_waveProvider?.BufferedBytes > 0)
+                _waveProvider.ClearBuffer();
+
+            Listening = false;
+
+            PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+            _abort.Close();
         }
 
         void SampleChannelPreVolumeMeter(object sender, StreamVolumeEventArgs e)
@@ -703,7 +586,6 @@ namespace iSpyApplication.Sources.Video
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         // Protected implementation of Dispose pattern. 
@@ -714,10 +596,8 @@ namespace iSpyApplication.Sources.Video
 
             if (disposing)
             {
-                _reloadEvent?.Close();
-                _stopEvent?.Close();
+                
             }
-
             // Free any unmanaged objects here. 
             //
             _disposed = true;

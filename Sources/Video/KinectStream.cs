@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using AForge.Imaging.Filters;
+using iSpyApplication.Controls;
 using iSpyApplication.Kinect;
 using iSpyApplication.Sources.Audio;
 using iSpyApplication.Utilities;
@@ -16,7 +17,7 @@ using NAudio.Wave.SampleProviders;
 
 namespace iSpyApplication.Sources.Video
 {
-    public class KinectStream : IVideoSource, IAudioSource, ISupportsAudio, IDisposable
+    public class KinectStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
     {
         private readonly Pen _inferredBonePen = new Pen(Brushes.Gray, 1);
         private readonly Pen _trackedBonePen = new Pen(Brushes.Green, 2);
@@ -29,14 +30,10 @@ namespace iSpyApplication.Sources.Video
         private readonly bool _skeleton, _tripwires;
         private DateTime _lastWarnedTripWire = DateTime.MinValue;
         //private readonly bool _bound;
-        private ManualResetEvent _stopEvent;
-        private DateTime _lastFrameTimeStamp = DateTime.UtcNow;
-        public int StreamMode = 0;//color
+        public int StreamMode;//color
+        private ReasonToFinishPlaying _res;
+        private ManualResetEvent _abort;
 
-        private const double MaxInterval = 1000d/15;
-        
-        private long _bytesReceived;
-        private int _framesReceived;
         private string _uniqueKinectId;
         ////Depth Stuff
         private short[] _depthPixels;
@@ -114,18 +111,12 @@ namespace iSpyApplication.Sources.Video
 
         #endregion
 
-
-        public KinectStream()
+        public KinectStream(CameraWindow source): base(source)
         {
-            
-        }
-
-        public KinectStream(string uniqueKinectId, bool skeleton, bool tripwires)
-        {
-            _uniqueKinectId = uniqueKinectId;
-            _skeleton = skeleton;
-            _tripwires = tripwires;
-
+            _tripwires = Convert.ToBoolean(source.Nv(source.Camobject.settings.namevaluesettings, "TripWires"));
+            _uniqueKinectId = source.Nv(source.Camobject.settings.namevaluesettings, "UniqueKinectId");
+            _skeleton = Convert.ToBoolean(source.Nv(source.Camobject.settings.namevaluesettings, "KinectSkeleton"));
+            StreamMode = Convert.ToInt32(source.Nv(source.Camobject.settings.namevaluesettings, "StreamMode"));
         }
 
         public int Tilt
@@ -151,18 +142,6 @@ namespace iSpyApplication.Sources.Video
 
         public event PlayingFinishedEventHandler PlayingFinished;
 
-
-        public long BytesReceived
-        {
-            get
-            {
-                long bytes = _bytesReceived;
-                _bytesReceived = 0;
-                return bytes;
-            }
-        }
-
-
         public virtual string Source
         {
             get { return _uniqueKinectId; }
@@ -170,18 +149,23 @@ namespace iSpyApplication.Sources.Video
         }
 
 
-        public int FramesReceived
+        public bool IsRunning
         {
             get
             {
-                int frames = _framesReceived;
-                _framesReceived = 0;
-                return frames;
+                if (_thread == null)
+                    return false;
+
+                try
+                {
+                    return !_thread.Join(TimeSpan.Zero);
+                }
+                catch
+                {
+                    return true;
+                }
             }
         }
-
-        private bool _isrunning;
-        public bool IsRunning => _isrunning;
 
         public bool MousePointer;
 
@@ -200,8 +184,7 @@ namespace iSpyApplication.Sources.Video
             }
             if (_sensor==null)
             {
-                Logger.LogMessageToFile("Sensor not found: "+_uniqueKinectId,"KinectStream");
-                _isrunning = false;
+                Logger.LogMessage("Sensor not found: "+_uniqueKinectId,"KinectStream");
                 return;
             }
 
@@ -253,21 +236,20 @@ namespace iSpyApplication.Sources.Video
                     HasAudioStream = null;
                 }
 
-                _isrunning = true;
-
-                _stopEvent = new ManualResetEvent(false);
+                _res = ReasonToFinishPlaying.DeviceLost;
 
                 // create and start new thread
-                var thread = new Thread(AudioThread) { Name = "kinect audio", IsBackground = true};
-                thread.Start();
+                _thread = new Thread(AudioThread) { Name = "kinect audio", IsBackground = true};
+                _thread.Start();
             }
             catch (Exception ex)//IOException)
             {
-                Logger.LogExceptionToFile(ex, "KinectStream");
+                Logger.LogException(ex, "KinectStream");
                 _sensor = null;
-                _isrunning = false;
             }
         }
+
+        private Thread _thread;
 
         void SampleChannelPreVolumeMeter(object sender, StreamVolumeEventArgs e)
         {
@@ -276,7 +258,8 @@ namespace iSpyApplication.Sources.Video
 
         private void AudioThread()
         {
-            while (_stopEvent!=null && !_stopEvent.WaitOne(0, false))
+            _abort = new ManualResetEvent(false);
+            while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
             {
                 int dataLength = _audioStream.Read(_audioBuffer, 0, _audioBuffer.Length);
                 if (DataAvailable != null)
@@ -295,6 +278,39 @@ namespace iSpyApplication.Sources.Video
                     DataAvailable?.Invoke(this, new DataAvailableEventArgs((byte[])_audioBuffer.Clone(),read));
                 }
             }
+
+
+            try
+            {
+                if (_sensor != null)
+                {
+                    _sensor.AudioSource?.Stop();
+
+                    _sensor.Stop();
+                    _sensor.SkeletonFrameReady -= SensorSkeletonFrameReady;
+                    _sensor.ColorFrameReady -= SensorColorFrameReady;
+                    _sensor.DepthFrameReady -= SensorDepthFrameReady;
+
+                    _sensor.Dispose();
+
+                    _sensor = null;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            if (_sampleChannel!=null)
+                _sampleChannel.PreVolumeMeter -= SampleChannelPreVolumeMeter;
+
+            if (_waveProvider != null && _waveProvider.BufferedBytes > 0)
+                _waveProvider.ClearBuffer();
+
+            Listening = false;
+
+            PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+            _abort.Close();
         }
 
         void SensorDepthFrameReady(object sender, DepthImageFrameReadyEventArgs e)
@@ -304,10 +320,8 @@ namespace iSpyApplication.Sources.Video
             {
                 if (depthFrame != null)
                 {
-                    if ((DateTime.UtcNow - _lastFrameTimeStamp).TotalMilliseconds >= MaxInterval)
+                    if (EmitFrame)
                     {
-                        _lastFrameTimeStamp = DateTime.UtcNow;
-
                         // Copy the pixel data from the image to a temporary array
                         depthFrame.CopyPixelDataTo(_depthPixels);
 
@@ -397,10 +411,8 @@ namespace iSpyApplication.Sources.Video
 
         void SensorColorFrameReady(object sender, ColorImageFrameReadyEventArgs e)
         {
-            if ((DateTime.UtcNow - _lastFrameTimeStamp).TotalMilliseconds >= MaxInterval)
+            if (EmitFrame)
             {
-                _lastFrameTimeStamp = DateTime.UtcNow;
-
                 using (ColorImageFrame imageFrame = e.OpenColorImageFrame())
                 {
                     if (imageFrame != null)
@@ -582,63 +594,29 @@ namespace iSpyApplication.Sources.Video
         public delegate void TripWireEventHandler(object sender, EventArgs e);
         public List<DepthLine> TripWires = new List<DepthLine>();
 
-        public void SignalToStop()
-        {
-            Stop();
-        }
-
-
-        public void WaitForStop()
-        {
-            Stop();
-        }
-
 
         public void Stop()
         {
-            if (_sampleChannel != null)
-                _sampleChannel.PreVolumeMeter -= SampleChannelPreVolumeMeter;
-
-            if (_stopEvent != null)
+            if (IsRunning)
             {
-                _stopEvent.Set();
-                Thread.Sleep(500);
-                _stopEvent.Close();
-                _stopEvent.Dispose();
-                _stopEvent = null;
-                
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                _abort?.Set();
+            }
+            else
+            {
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
             }
 
-            try
-            {
-                if (_sensor != null)
-                {
-                    _sensor.AudioSource?.Stop();
+        }
 
-                    _sensor.Stop();
-                    _sensor.SkeletonFrameReady -= SensorSkeletonFrameReady;
-                    _sensor.ColorFrameReady -= SensorColorFrameReady;
-                    _sensor.DepthFrameReady -= SensorDepthFrameReady;
+        public void Restart()
+        {
+            if (!IsRunning)
+                return;
 
-                    _sensor.Dispose();
-
-                    _sensor = null;
-                }
-            }
-            catch
-            {
-                // ignored
-            }
-
-
-            if (_waveProvider != null && _waveProvider.BufferedBytes > 0)
-                _waveProvider.ClearBuffer();
-
-            Listening = false;
-
-            _stopEvent = null;
-            
-            _isrunning = false;
+            _res = ReasonToFinishPlaying.Restart;
+            _abort?.Set();
 
         }
 
@@ -687,7 +665,7 @@ namespace iSpyApplication.Sources.Video
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "KinectStream");
+                Logger.LogException(ex, "KinectStream");
             }
             return null;
         }
@@ -721,7 +699,7 @@ namespace iSpyApplication.Sources.Video
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "KinectStream");
+                Logger.LogException(ex, "KinectStream");
             }
             return null;
         }
@@ -768,7 +746,6 @@ namespace iSpyApplication.Sources.Video
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         // Protected implementation of Dispose pattern. 
@@ -779,7 +756,6 @@ namespace iSpyApplication.Sources.Video
 
             if (disposing)
             {
-                _stopEvent?.Close();
                 _inferredBonePen.Dispose();
                 _trackedBonePen.Dispose();
                 _trackedJointBrush.Dispose();

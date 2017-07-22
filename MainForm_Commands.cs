@@ -7,7 +7,6 @@ using System.Windows.Forms;
 using iSpyApplication.Controls;
 using iSpyApplication.Joystick;
 using iSpyApplication.Utilities;
-using utils;
 
 namespace iSpyApplication
 {
@@ -518,7 +517,7 @@ namespace iSpyApplication
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
             }
 
         }

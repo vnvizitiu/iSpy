@@ -242,7 +242,7 @@ namespace iSpyApplication
 
             LoadAlertTypes();
 
-            ddlProcessFrames.SelectedItem = CameraControl.Camobject.detector.processeveryframe.ToString(CultureInfo.InvariantCulture);
+            numProcessInterval.Value = CameraControl.Camobject.detector.processframeinterval;
             txtCameraName.Text = CameraControl.Camobject.name;
 
             ranger1.Maximum = 100;
@@ -452,7 +452,7 @@ namespace iSpyApplication
             ddlCloudProviders.SelectedIndex = 0;
             foreach (var o in ddlCloudProviders.Items)
             {
-                if (o.ToString() == CameraControl.Camobject.settings.cloudprovider.provider)
+                if (o.ToString().ToLower() == CameraControl.Camobject.settings.cloudprovider.provider.ToLower())
                 {
                     ddlCloudProviders.SelectedItem = o;
                     break;
@@ -644,7 +644,6 @@ namespace iSpyApplication
             label58.Text = label99.Text = LocRm.GetString("Seconds");
             
             label60.Text = LocRm.GetString("Egimagesmycamimagejpg");
-            label64.Text = LocRm.GetString("Frames");
             label67.Text = LocRm.GetString("Images");
             label68.Text = LocRm.GetString("Interval");
             label69.Text = LocRm.GetString("Seconds");
@@ -871,7 +870,7 @@ namespace iSpyApplication
             }
             catch(Exception ex)
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
             }
         }
 
@@ -998,7 +997,7 @@ namespace iSpyApplication
             CameraControl.Camobject.savelocal.enabled = chkLocalSaving.Checked;
 
 
-            CameraControl.Camobject.detector.processeveryframe = Convert.ToInt32(ddlProcessFrames.SelectedItem.ToString());
+            CameraControl.Camobject.detector.processframeinterval = (int)numProcessInterval.Value;
             CameraControl.Camobject.detector.motionzones = AreaControl.MotionZones;
             CameraControl.Camobject.detector.type = (string) _detectortypes[ddlMotionDetector.SelectedIndex];
             CameraControl.Camobject.detector.postprocessor = (string) _processortypes[ddlProcessor.SelectedIndex];
@@ -1437,10 +1436,6 @@ namespace iSpyApplication
             MainForm.OpenUrl( MainForm.Website+"/userguide-ftp.aspx");
         }
 
-        private void DdlProcessFramesSelectedIndexChanged(object sender, EventArgs e)
-        {
-            CameraControl.Camobject.detector.processeveryframe = Convert.ToInt32(ddlProcessFrames.SelectedItem);
-        }
 
         private void Login()
         {
@@ -1555,9 +1550,9 @@ namespace iSpyApplication
         {
             lbExtended.Items.Clear();
             btnAddPreset.Visible = btnDeletePreset.Visible = true;
-            foreach (string cmd in CameraControl.PTZ.ONVIFPresets)
+            foreach (var preset in CameraControl.PTZ.ONVIFPresets)
             {
-                lbExtended.Items.Add(new ListItem(cmd, cmd));
+                lbExtended.Items.Add(new ListItem(preset.Name, preset.token));
             }
         }
 
@@ -1570,7 +1565,7 @@ namespace iSpyApplication
             if (lbExtended.SelectedIndex > -1)
             {
                 var li = ((ListItem) lbExtended.SelectedItem);
-                SendPtzCommand(li.Value);
+                SendPtzCommand(li.Name);
             }
         }
 
@@ -1599,7 +1594,7 @@ namespace iSpyApplication
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
                 MessageBox.Show(ex.Message, LocRm.GetString("Error"));
             }
         }
@@ -1848,6 +1843,11 @@ namespace iSpyApplication
             {
                 return _name;
             }
+
+            public string Name
+            {
+                get { return _name; }
+            }
         }
 
         #endregion
@@ -2007,7 +2007,7 @@ namespace iSpyApplication
 
         private void rdoContinuous_CheckedChanged(object sender, EventArgs e)
         {
-
+            CameraControl.Camobject.alerts.processmode = "continuous";
         }
 
         private void ddlCopyFrom_SelectedIndexChanged(object sender, EventArgs e)
@@ -2222,7 +2222,15 @@ namespace iSpyApplication
                 {
                     if (CameraControl.PTZ != null)
                     {
-                        CameraControl.PTZ.AddPreset(s);
+                        try
+                        {
+                            CameraControl.PTZ.AddPreset(s);
+                        }
+                        catch (Exception ex)
+                        {
+                            //sometimes seems to return an invalid result (camera bug?)
+                        }
+                        Thread.Sleep(1000); //allows time to complete
                         PopOnvifPresets();
                     }
                 }
@@ -2238,7 +2246,15 @@ namespace iSpyApplication
                 if (CameraControl.PTZ != null)
                 {
                     var li = (ListItem) p;
-                    CameraControl.PTZ.DeletePreset(li.Value);
+                    try
+                    {
+                        CameraControl.PTZ.DeletePreset(li.Value);
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                    Thread.Sleep(1000);
                     PopOnvifPresets();
                 }
             }
@@ -2268,7 +2284,7 @@ namespace iSpyApplication
 
         private void rdoMotion_CheckedChanged(object sender, EventArgs e)
         {
-
+            CameraControl.Camobject.alerts.processmode = "motion";
         }
 
         private void actionEditor1_Load(object sender, EventArgs e)
@@ -2414,21 +2430,8 @@ namespace iSpyApplication
 
         private void btnAuthorise_Click(object sender, EventArgs e)
         {
-            switch (ddlCloudProviders.SelectedItem.ToString())
-            {
-                case "Google Drive":
-                    if (Cloud.Drive.Authorise())
-                        MessageBox.Show(this, "OK");
-                    else
-                        MessageBox.Show(this, LocRm.GetString("Failed"));
-                    return;
-                case "Dropbox":
-                    if (Cloud.Dropbox.Authorise())
-                        MessageBox.Show(this, "OK");
-                    else
-                        MessageBox.Show(this, LocRm.GetString("Failed"));
-                    return;
-            }
+            Authorise(ddlCloudProviders.SelectedItem.ToString().ToLower());
+            
         }
 
         private void ddlCloudProviders_SelectedIndexChanged(object sender, EventArgs e)
@@ -2479,12 +2482,78 @@ namespace iSpyApplication
 
         private void btnAuthoriseYouTube_Click(object sender, EventArgs e)
         {
-            if (YouTubeUploader.Authorise())
+            Authorise("youtube");
+            
+        }
+
+        private void Authorise(string provider)
+        {
+            string url = "";
+            var rurl = "https://www.ispyconnect.com";
+            switch (provider)
             {
-                MessageBox.Show(this, LocRm.GetString("OK"));
+                case "drive":
+                    url =("https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/drive&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&client_id=648753488389.apps.googleusercontent.com&access_type=offline");
+                    break;
+                case "youtube":
+                    url =("https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/youtube.upload&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&client_id=648753488389.apps.googleusercontent.com&access_type=offline");
+                    break;
+                case "dropbox":
+                    url =("https://www.dropbox.com/oauth2/authorize?client_id=6k40bpqlz573mqt&redirect_uri=" + rurl + "/responsecode.aspx&response_type=code");
+                    break;
+                case "onedrive":
+                    url = ("https://login.live.com/oauth20_authorize.srf?client_id=000000004C193719&scope=wl.offline_access wl.skydrive_update&response_type=code&redirect_uri=" + rurl + "/responsecode.aspx");
+                    break;
+                case "box":
+                    url = ("https://account.box.com/api/oauth2/authorize?client_id=0uvr6c6kvl60p7725i62v9ua4k6bclpj&box_login=&response_type=code&redirect_uri=" + rurl + "/responsecode.aspx&state=" + new Random().NextDouble());
+                    break;
+                case "flickr":
+                    var err = "";
+                    url = Flickr.GetAuthoriseURL(out err);
+                    if (err != "")
+                    {
+                        MessageBox.Show(err);
+                        return;
+                    }
+                    break;
             }
-            else
-                MessageBox.Show(this, LocRm.GetString("Failed"));
+
+
+            using (var auth = new Authorizer())
+            {
+                auth.URL = url;
+                auth.ShowDialog(this);
+
+                if (!string.IsNullOrEmpty(auth.AuthCode))
+                {
+                    bool b = false;
+                    switch (provider)
+                    {
+                        case "drive":
+                            b = Drive.Authorise(auth.AuthCode);
+                            break;
+                        case "youtube":
+                            b = YouTubeUploader.Authorise(auth.AuthCode);
+                            break;
+                        case "dropbox":
+                            b = Dropbox.Authorise(auth.AuthCode);
+                            break;
+                        case "onedrive":
+                            b = OneDrive.Authorise(auth.AuthCode);
+                            break;
+                        case "flickr":
+                            b = Flickr.Authorise(auth.AuthCode);
+                            break;
+                        case "box":
+                            b = Box.Authorise(auth.AuthCode);
+                            break;
+                    }
+                    if (b && provider!="youtube")
+                        CameraControl.Camobject.settings.cloudprovider.provider = ddlCloudProviders.SelectedItem.ToString().ToLower();
+
+                    MessageBox.Show(this, b ? LocRm.GetString("OK") : LocRm.GetString("Failed"));
+                }
+            }
         }
 
         private void flowLayoutPanel11_Paint(object sender, PaintEventArgs e)
@@ -2510,6 +2579,16 @@ namespace iSpyApplication
         {
             CameraControl.Camobject.settings.fillMode = chkFill.Checked ? 1 : 0;
             CameraControl.RC = Rectangle.Empty;
+        }
+
+        private void numProcessInterval_ValueChanged(object sender, EventArgs e)
+        {
+            CameraControl.Camobject.detector.processframeinterval = (int)numProcessInterval.Value;
+        }
+
+        private void rdoTrigger_CheckedChanged(object sender, EventArgs e)
+        {
+            CameraControl.Camobject.alerts.processmode = "trigger";
         }
     }
 }

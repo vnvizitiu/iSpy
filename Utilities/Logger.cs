@@ -21,14 +21,14 @@ namespace iSpyApplication.Utilities
             "<?xml version=\"1.0\" encoding=\"utf-8\"?><PluginLog username=\"" + Environment.UserName +
             "\"><!--CONTENT--></PluginLog>";
 
-        internal static void LogExceptionToFile(Exception ex, string info)
+        internal static void LogException(Exception ex, string info)
         {
             ex.HelpLink = info + ": " + ex.Message;
-            Logger.LogExceptionToFile(ex);
+            Logger.LogException(ex);
         }
 
 
-        internal static void LogExceptionToFile(Exception ex)
+        internal static void LogException(Exception ex)
         {
             if (!_logging || !MainForm.Conf.Logging.Enabled)
                 return;
@@ -45,11 +45,11 @@ namespace iSpyApplication.Utilities
                 // ignored
             }
         }
-        internal static void LogMessageToFile(String message, string e)
+        internal static void LogMessage(String message, string e)
         {
-            Logger.LogMessageToFile(String.Format(message, e));
+            Logger.LogMessage(String.Format(message, e));
         }
-        internal static void LogMessageToFile(String message)
+        internal static void LogMessage(String message)
         {
             if (!_logging || !MainForm.Conf.Logging.Enabled)
                 return;
@@ -71,7 +71,7 @@ namespace iSpyApplication.Utilities
             PluginLogFile.Append("<message name=\"" + name + "\" id=\"" + id + "\" action=\"" + action + "\" timestamp=\"" + dt.Ticks + "\">" + detail.Replace("&", "&amp;") + "</message>");
         }
 
-        internal static void LogErrorToFile(String message)
+        internal static void LogError(String message)
         {
             if (!_logging || !MainForm.Conf.Logging.Enabled)
                 return;
@@ -86,7 +86,7 @@ namespace iSpyApplication.Utilities
                 //do nothing
             }
         }
-        internal static void LogErrorToFile(String message, string message2)
+        internal static void LogError(String message, string message2)
         {
             if (!_logging || !MainForm.Conf.Logging.Enabled)
                 return;
@@ -148,9 +148,9 @@ namespace iSpyApplication.Utilities
                     {
                         string logTemplate = "<html><head><title>iSpy v" + Application.ProductVersion + " Log File</title><style type=\"text/css\">body,td,th,div {font-family:Verdana;font-size:10px}</style></head><body><h1>" + MainForm.Conf.ServerName + ": Log Start (v" + Application.
                                                                                                           ProductVersion + " Platform: " + Program.Platform + "): " + _logStartDateTime + "</h1><p><table cellpadding=\"2px\"><!--CONTENT--></table></p></body></html>";
-                        string fc = logTemplate.Replace("<!--CONTENT-->", _logFile.ToString());
-                        File.WriteAllText(Program.AppDataPath + @"log_" + NextLog + ".htm", fc);
                         _lastlog = _logFile.ToString();
+                        string fc = logTemplate.Replace("<!--CONTENT-->", _lastlog);
+                        File.WriteAllText(Program.AppDataPath + @"log_" + NextLog + ".htm", fc);
                     }
                 }
                 catch (Exception)

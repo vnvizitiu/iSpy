@@ -54,7 +54,7 @@
                                                     <xs:element name="active" type="xs:boolean" />
                                                     <xs:element name="notifyondisconnect" type="xs:boolean" />
                                                     <xs:element name="emailondisconnect" type="xs:string"/>
-                                                    <xs:element name="frameinterval" type="xs:int"/>
+                                                    <xs:element name="frameinterval" type="xs:int" default="0"/>
                                                     <xs:element name="framerate" type="xs:int"/>
                                                     <xs:element name="smsnumber" type="xs:string"/>
                                                     <xs:element name="emailaddress" type="xs:string"/>
@@ -138,8 +138,17 @@
                                                           <xs:element name="path" type="xs:string" default="[MEDIATYPE]/[NAME]/" />
                                                         </xs:sequence>
                                                       </xs:complexType>
-                                                    </xs:element>  
-                                                    <xs:element name="storagemanagement">
+                                                    </xs:element>
+                                                  <xs:element name="tokenconfig">
+                                                    <xs:complexType>
+                                                      <xs:sequence>
+                                                        <xs:element name="tokenpath" type="xs:string" default=""/>
+                                                        <xs:element name="tokenpost" type="xs:string" default=""/>
+                                                        <xs:element name="tokenport" type="xs:int" default="80"/>
+                                                      </xs:sequence>
+                                                    </xs:complexType>
+                                                  </xs:element>
+                                                  <xs:element name="storagemanagement">
                                                         <xs:complexType>
                                                           <xs:sequence>
                                                             <xs:element name="enabled" type="xs:boolean" default="false"/>
@@ -169,6 +178,10 @@
                                                 <xs:attribute name="FishEyeScale" type="xs:double" default="0.9"/>
                                                 <xs:attribute name="FishEyeFocalLengthPX" type="xs:int" default="700"/>
                                                 <xs:attribute name="uniqueID" type="xs:string" default=""/>
+                                                <xs:attribute name="resizeWidth" type="xs:int" default="-1"/>
+                                                <xs:attribute name="resizeHeight" type="xs:int" default="-1"/>
+                                                <xs:attribute name="vlcWidth" type="xs:int" default="-1"/>
+                                                <xs:attribute name="vlcHeight" type="xs:int" default="-1"/>
                                             </xs:complexType>
                                         </xs:element>
                                         <xs:element name="ftp">
@@ -259,7 +272,7 @@
                                                 <xs:attribute name="keepobjectedges" type="xs:boolean" use="required" />
                                                 <xs:attribute name="recordondetect" type="xs:boolean" use="required" />
                                                 <xs:attribute name="recordonalert" type="xs:boolean" use="required" />
-                                                <xs:attribute name="processeveryframe" type="xs:int" use="required" />
+                                                <xs:attribute name="processframeinterval" type="xs:int" default="200" />
                                                 <xs:attribute name="minwidth" type="xs:int" default="20"/>
                                                 <xs:attribute name="minheight" type="xs:int" default="20"/>
                                                 <xs:attribute name="highlight" type="xs:boolean" default="false"/>

@@ -42,7 +42,7 @@ namespace iSpyApplication.Sources.Audio.talk
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "TalkAxis");
+                Logger.LogException(ex, "TalkAxis");
                 TalkStopped?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -196,7 +196,7 @@ namespace iSpyApplication.Sources.Audio.talk
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "TalkAxis");
+                Logger.LogException(ex, "TalkAxis");
                 StopTalk();
             }
         }
@@ -206,7 +206,6 @@ namespace iSpyApplication.Sources.Audio.talk
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         // Protected implementation of Dispose pattern. 

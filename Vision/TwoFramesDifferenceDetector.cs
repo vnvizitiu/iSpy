@@ -68,14 +68,14 @@ namespace iSpyApplication.Vision
         private bool _suppressNoise = true;
 
         // threshold values
-        private int _differenceThreshold    =  15;
+        private int _differenceThreshold = 15;
         private int _differenceThresholdNeg = -15;
 
         // binary erosion filter
-        private readonly BinaryErosion3x3 _erosionFilter = new BinaryErosion3x3( );
+        private readonly BinaryErosion3x3 _erosionFilter = new BinaryErosion3x3();
 
         // dummy object to lock for synchronization
-        private readonly object _sync = new object( );
+        //private readonly object _sync = new object( );
 
         /// <summary>
         /// Difference threshold value, [1, 255].
@@ -92,9 +92,9 @@ namespace iSpyApplication.Vision
             get { return _differenceThreshold; }
             set
             {
-                lock ( _sync )
+                //lock ( _sync )
                 {
-                    _differenceThreshold = Math.Max( 1, Math.Min( 255, value ) );
+                    _differenceThreshold = Math.Max(1, Math.Min(255, value));
                     _differenceThresholdNeg = -_differenceThreshold;
                 }
             }
@@ -113,9 +113,9 @@ namespace iSpyApplication.Vision
         {
             get
             {
-                lock ( _sync )
+                //lock ( _sync )
                 {
-                    return (float) _pixelsChanged / ( _width * _height );
+                    return (float) _pixelsChanged/(_width*_height);
                 }
             }
         }
@@ -136,7 +136,7 @@ namespace iSpyApplication.Vision
         {
             get
             {
-                lock ( _sync )
+                //lock ( _sync )
                 {
                     return _motionFrame;
                 }
@@ -161,20 +161,20 @@ namespace iSpyApplication.Vision
             get { return _suppressNoise; }
             set
             {
-                lock ( _sync )
+                //lock ( _sync )
                 {
                     _suppressNoise = value;
 
                     // allocate temporary frame if required
-                    if ( ( _suppressNoise ) && ( _tempFrame == null ) && ( _motionFrame != null ) )
+                    if ((_suppressNoise) && (_tempFrame == null) && (_motionFrame != null))
                     {
-                        _tempFrame = UnmanagedImage.Create( _width, _height, PixelFormat.Format8bppIndexed );
+                        _tempFrame = UnmanagedImage.Create(_width, _height, PixelFormat.Format8bppIndexed);
                     }
 
                     // check if temporary frame is not required
-                    if ( ( !_suppressNoise ) && ( _tempFrame != null ) )
+                    if ((!_suppressNoise) && (_tempFrame != null))
                     {
-                        _tempFrame.Dispose( );
+                        _tempFrame.Dispose();
                         _tempFrame = null;
                     }
                 }
@@ -185,7 +185,9 @@ namespace iSpyApplication.Vision
         /// Initializes a new instance of the <see cref="TwoFramesDifferenceDetector"/> class.
         /// </summary>
         /// 
-        public TwoFramesDifferenceDetector( ) { }
+        public TwoFramesDifferenceDetector()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TwoFramesDifferenceDetector"/> class.
@@ -193,7 +195,7 @@ namespace iSpyApplication.Vision
         /// 
         /// <param name="suppressNoise">Suppress noise in video frames or not (see <see cref="SuppressNoise"/> property).</param>
         /// 
-        public TwoFramesDifferenceDetector( bool suppressNoise )
+        public TwoFramesDifferenceDetector(bool suppressNoise)
         {
             _suppressNoise = suppressNoise;
         }
@@ -210,74 +212,76 @@ namespace iSpyApplication.Vision
         /// (changes) in the processed frame.</para>
         /// </remarks>
         /// 
-        public unsafe void ProcessFrame( UnmanagedImage videoFrame )
+        public unsafe void ProcessFrame(UnmanagedImage videoFrame)
         {
-            lock ( _sync )
+            //lock ( _sync )
             {
                 // check previous frame
-                if ( _previousFrame == null )
+                if (_previousFrame == null)
                 {
                     // save image dimension
                     _width = videoFrame.Width;
                     _height = videoFrame.Height;
 
                     // alocate memory for previous and current frames
-                    _previousFrame = UnmanagedImage.Create( _width, _height, PixelFormat.Format8bppIndexed );
-                    _motionFrame = UnmanagedImage.Create( _width, _height, PixelFormat.Format8bppIndexed );
+                    _previousFrame = UnmanagedImage.Create(_width, _height, PixelFormat.Format8bppIndexed);
+                    _motionFrame = UnmanagedImage.Create(_width, _height, PixelFormat.Format8bppIndexed);
 
-                    _frameSize = _motionFrame.Stride * _height;
+                    _frameSize = _motionFrame.Stride*_height;
 
                     // temporary buffer
-                    if ( _suppressNoise )
+                    if (_suppressNoise)
                     {
-                        _tempFrame = UnmanagedImage.Create( _width, _height, PixelFormat.Format8bppIndexed );
+                        _tempFrame = UnmanagedImage.Create(_width, _height, PixelFormat.Format8bppIndexed);
                     }
 
                     // convert source frame to grayscale
-                    Tools.ConvertToGrayscale( videoFrame, _previousFrame );
+                    Tools.ConvertToGrayscale(videoFrame, _previousFrame);
 
                     return;
                 }
 
                 // check image dimension
-                if ( ( videoFrame.Width != _width ) || ( videoFrame.Height != _height ) )
+                if ((videoFrame.Width != _width) || (videoFrame.Height != _height))
                     return;
 
                 // convert current image to grayscale
-                Tools.ConvertToGrayscale( videoFrame, _motionFrame );
+                Tools.ConvertToGrayscale(videoFrame, _motionFrame);
 
                 // pointers to previous and current frames
-                byte* prevFrame = (byte*) _previousFrame.ImageData.ToPointer( );
-                byte* currFrame = (byte*) _motionFrame.ImageData.ToPointer( );
+                byte* prevFrame = (byte*) _previousFrame.ImageData.ToPointer();
+                byte* currFrame = (byte*) _motionFrame.ImageData.ToPointer();
                 // difference value
 
                 // 1 - get difference between frames
                 // 2 - threshold the difference
                 // 3 - copy current frame to previous frame
-                for ( int i = 0; i < _frameSize; i++, prevFrame++, currFrame++ )
+                for (int i = 0; i < _frameSize; i++, prevFrame++, currFrame++)
                 {
                     // difference
-                    var diff = *currFrame -  *prevFrame;
+                    var diff = *currFrame - *prevFrame;
                     // copy current frame to previous
                     *prevFrame = *currFrame;
                     // treshold
-                    *currFrame = ( ( diff >= _differenceThreshold ) || ( diff <= _differenceThresholdNeg ) ) ? (byte) 255 : (byte) 0;
+                    *currFrame = ((diff >= _differenceThreshold) || (diff <= _differenceThresholdNeg))
+                        ? (byte) 255
+                        : (byte) 0;
                 }
 
-                if ( _suppressNoise )
+                if (_suppressNoise)
                 {
                     // suppress noise and calculate motion amount
-                    AForge.SystemTools.CopyUnmanagedMemory( _tempFrame.ImageData, _motionFrame.ImageData, _frameSize );
-                    _erosionFilter.Apply( _tempFrame, _motionFrame );
+                    AForge.SystemTools.CopyUnmanagedMemory(_tempFrame.ImageData, _motionFrame.ImageData, _frameSize);
+                    _erosionFilter.Apply(_tempFrame, _motionFrame);
                 }
 
                 // calculate amount of motion pixels
                 _pixelsChanged = 0;
-                byte* motion = (byte*) _motionFrame.ImageData.ToPointer( );
+                byte* motion = (byte*) _motionFrame.ImageData.ToPointer();
 
-                for ( int i = 0; i < _frameSize; i++, motion++ )
+                for (int i = 0; i < _frameSize; i++, motion++)
                 {
-                    _pixelsChanged += ( *motion & 1 );
+                    _pixelsChanged += (*motion & 1);
                 }
             }
         }
@@ -291,25 +295,25 @@ namespace iSpyApplication.Vision
         /// may be also done at any time to restart motion detection algorithm.</para>
         /// </remarks>
         /// 
-        public void Reset( )
+        public void Reset()
         {
-            lock ( _sync )
+            //lock ( _sync )
             {
-                if ( _previousFrame != null )
+                if (_previousFrame != null)
                 {
-                    _previousFrame.Dispose( );
+                    _previousFrame.Dispose();
                     _previousFrame = null;
                 }
 
-                if ( _motionFrame != null )
+                if (_motionFrame != null)
                 {
-                    _motionFrame.Dispose( );
+                    _motionFrame.Dispose();
                     _motionFrame = null;
                 }
 
-                if ( _tempFrame != null )
+                if (_tempFrame != null)
                 {
-                    _tempFrame.Dispose( );
+                    _tempFrame.Dispose();
                     _tempFrame = null;
                 }
             }

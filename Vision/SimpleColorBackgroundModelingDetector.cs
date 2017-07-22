@@ -229,7 +229,7 @@ namespace iSpyApplication.Vision
             get { return _keepObjectEdges; }
             set
             {
-                lock ( _sync )
+               lock ( _sync )
                 {
                     _keepObjectEdges = value;
                 }

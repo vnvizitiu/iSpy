@@ -146,11 +146,28 @@
         <xs:element name="Tags" type="xs:string" default=""/>
         <xs:element name="PortMapperMode" type="xs:int" default="2"/>
         <xs:element name="ArrangeMode" type="xs:int" default="0"/>
+        <xsd:element name="GPU">
+          <xsd:complexType>
+            <xsd:attribute name="nVidia" type="xsd:boolean" default="false" />
+            <xsd:attribute name="QuickSync" type="xsd:boolean" default="false" />
+          </xsd:complexType>
+        </xsd:element>
         <xsd:element name="Logging">
           <xsd:complexType>
             <xsd:attribute name="FileSize" type="xsd:int" default="100" />
             <xsd:attribute name="Enabled" type="xsd:boolean" default="true" />
             <xsd:attribute name="KeepDays" type="xsd:int" default="7" />
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="Cloud">
+          <xsd:complexType>
+            <xsd:attribute name="DropBox" type="xs:string" default=""/>
+            <xsd:attribute name="Drive" type="xs:string" default=""/>
+            <xsd:attribute name="YouTube" type="xs:string" default=""/>
+            <xsd:attribute name="Flickr" type="xs:string" default=""/>
+            <xsd:attribute name="OneDrive" type="xs:string" default=""/>
+            <xsd:attribute name="Box" type="xs:string" default=""/>
+            <xsd:attribute name="Twitter" type="xs:string" default=""/>
           </xsd:complexType>
         </xsd:element>
         <xs:element name="FTPServers">
@@ -254,7 +271,7 @@
                   <xs:attribute name="Enable_Storage_Management" type="xs:boolean" default="false" />
                   <xs:attribute name="StopSavingOnStorageLimit" type="xs:boolean" default="false"/>
                   <xs:attribute name="StopSavingFlag" type="xs:boolean" default="false"/>
-                  <xs:attribute name="MaxMediaFolderSizeMB" type="xs:int" default="200" />
+                  <xs:attribute name="MaxMediaFolderSizeMB" type="xs:int" default="2000" />
                   <xs:attribute name="DeleteFilesOlderThanDays" type="xs:int" default="0"/>
                   <xs:attribute name="ID" type="xs:int" default="0"/>
                   <xs:attribute name="archive" type="xs:boolean" default="false" />

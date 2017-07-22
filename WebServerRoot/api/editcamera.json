@@ -193,7 +193,7 @@
                 { "text": "Sensitivity", "value": [ ], "type": "Slider", "min": 1, "max": 100, "range": true, "bindto": "detector.minsensitivity,detector.maxsensitivity", "id": "arrSensitivity", "help": "This controls how much motion triggers the motion detector." },
                 { "text": "Gain", "value": 0, "type": "Decimal", "min": 1, "max": 100, "bindto": "detector.gain", "help": "Multiplier for the motion detector.", "id": "numGain" },
                 { "text": "Filter Noise", "value": "", "type": "Boolean", "bindto": "settings.suppressnoise", "live": true },
-                { "text": "Process Frame", "value": 0, "type": "Int32", "min": 1, "max": 200, "bindto": "detector.processeveryframe", "help": "1= process every frame, 2= process every other frame etc" },
+                { "text": "Process Interval", "value": 0, "type": "Int32", "min": 0, "max": 2000, "bindto": "detector.processframeinterval", "help": "ms" },
                 { "text": "Zones", "value": [ ZONES ], "type": "ZoneManager", "help": "Drag out zones to monitor. Live motion and trigger range is displayed at the bottom. Drag zones out to delete." }
             ]
         },
@@ -336,9 +336,12 @@
                     "type": "Select",
                     "bindto": "settings.cloudprovider.provider",
                     "options": [
-                        { "text": "None", "value": "None" },
-                        { "text": "Google Drive", "value": "Google Drive", "noTranslate": true  },
-                        { "text": "Dropbox", "value": "Dropbox", "noTranslate": true  }
+                        { "text": "None", "value": "" },
+                        { "text": "Box", "value": "Box", "noTranslate": true  },
+                        { "text": "Drive", "value": "Drive", "noTranslate": true  },
+                        { "text": "Dropbox", "value": "Dropbox", "noTranslate": true  },
+                        { "text": "Flickr", "value": "Flickr", "noTranslate": true  },
+                        { "text": "OneDrive", "value": "OneDrive", "noTranslate": true  }
                     ],
                     "help": "See Server Settings to enable cloud services"
                 },
@@ -368,7 +371,7 @@
                 { "text": "Management", "value": "", "type": "Boolean", "bindto": "settings.storagemanagement.enabled" },
                 { "text": "Archive", "value": "", "type": "Boolean", "bindto": "settings.storagemanagement.archive", "help": "Move to the archive directory (see server settings) instead of deleting" },
                 { "text": "Max Size", "value": "", "type": "Int32", "bindto": "settings.storagemanagement.maxsize", "help": "Maximum size of folder (MB)" },
-                { "text": "Max Age", "value": "", "type": "Int32", "bindto": "settings.storagemanagement.maxage", "help":  "Maximum age of content (hours)" }
+                { "text": "Max Age (Hours)", "value": "", "type": "Int32", "bindto": "settings.storagemanagement.maxage", "help":  "Maximum age of content (hours)" }
             ]
         }
     ]

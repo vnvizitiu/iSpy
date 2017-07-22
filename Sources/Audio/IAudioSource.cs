@@ -11,6 +11,7 @@ namespace iSpyApplication.Sources.Audio
     /// 
     public interface IAudioSource
     {
+       // bool IsAudio { get; }
         /// <summary>
         /// New Packet event.
         /// </summary>
@@ -106,5 +107,7 @@ namespace iSpyApplication.Sources.Audio
         /// <remarks>Stops Audio source aborting its thread.</remarks>
         /// 
         void Stop();
+
+        void Restart();
     }
 }

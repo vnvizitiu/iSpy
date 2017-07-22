@@ -166,7 +166,7 @@ namespace iSpyApplication
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
             }
             flowPreview.Controls.Remove(pb);
             pb.MouseDown -= PbMouseDown;
@@ -331,15 +331,14 @@ namespace iSpyApplication
             foreach (var c in flowPreview.Controls)
             {
                 var pb = c as PreviewBox;
-                if (pb != null && pb.CreatedDate>dt)
+                if (pb != null && pb.CreatedDate>dt && pb.CreatedDate <dtTo)
                 {
                     if (f)
                     {
                         s = pb.Selected;
                         f = false;
                     }
-                    if (pb.CreatedDate > dt && pb.CreatedDate <dtTo)
-                        pb.Selected = !s;
+                    pb.Selected = !s;
                 }
             }
             flowPreview.Invalidate();
@@ -458,7 +457,7 @@ namespace iSpyApplication
                 }
             }
             if (msg != "")
-                MessageBox.Show(this, msg);
+                MessageBox.Show(this, LocRm.GetString(msg));
             
         }
 
@@ -485,7 +484,7 @@ namespace iSpyApplication
                 }
             }
             if (msg != "")
-                MessageBox.Show(this, msg);
+                MessageBox.Show(this, LocRm.GetString(msg));
         }
 
 

@@ -6,11 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Windows.Forms;
 using Declarations;
 using Declarations.Events;
 using Declarations.Media;
 using Declarations.Players;
+using iSpyApplication.Controls;
 using iSpyApplication.Sources.Audio;
 using iSpyApplication.Utilities;
 using Implementation;
@@ -20,20 +20,16 @@ using File = System.IO.File;
 
 namespace iSpyApplication.Sources.Video
 {
-    public class VlcStream : IVideoSource, IAudioSource, ISupportsAudio, IDisposable
+    public class VlcStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
     {
-        public int FormatWidth = 320, FormatHeight = 240;
         private readonly string[] _arguments;
-        private int _framesReceived;
-
-        private volatile bool _stopRequested, _stopping;
 
         IMediaPlayerFactory _mFactory;
         IMedia _mMedia;
         IVideoPlayer _mPlayer;
 
-        private Thread _thread;
-        private ManualResetEvent _stopEvent;
+        private ManualResetEvent _abort;
+        private ReasonToFinishPlaying _res = ReasonToFinishPlaying.DeviceLost;
 
         #region Audio
         private float _gain;
@@ -46,29 +42,27 @@ namespace iSpyApplication.Sources.Video
         private WaveFormat _recordingFormat;
         private BufferedWaveProvider _waveProvider;
         private SampleChannel _sampleChannel;
+        private Thread _thread;
 
         public BufferedWaveProvider WaveOutProvider { get; set; }
 
         #endregion
 
-        private long _lastFrame = DateTime.MinValue.Ticks;
-
-        public DateTime LastFrame
-        {
-            get { return new DateTime(_lastFrame); }
-            set { Interlocked.Exchange(ref _lastFrame, value.Ticks); }
-        }
+        public DateTime LastFrame { get; set; } = DateTime.MinValue;
 
         public int TimeOut = 8000;
 
         // URL for VLCstream
-        private string _source;
+        private readonly objectsCamera _source;
+        private readonly objectsMicrophone _audiosource;
+
+        private readonly bool _modeAudio;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VlcStream"/> class.
         /// </summary>
         /// 
-        public VlcStream()
+        public VlcStream():base(null)
         {
         }
 
@@ -78,10 +72,26 @@ namespace iSpyApplication.Sources.Video
         /// 
         /// <param name="source">URL, which provides VLCstream.</param>
         /// <param name="arguments"></param>
-        public VlcStream(string source, string[] arguments)
+        public VlcStream(CameraWindow source):base(source)
         {
-            _source = source;
+            _source = source.Camobject;
+            _arguments = _source.settings.vlcargs.Split(Environment.NewLine.ToCharArray(),
+                StringSplitOptions.RemoveEmptyEntries);
+            TimeOut = _source.settings.timeout;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VlcStream"/> class.
+        /// </summary>
+        /// 
+        /// <param name="source">URL, which provides VLCstream.</param>
+        /// <param name="arguments"></param>
+        public VlcStream(objectsMicrophone source, string[] arguments) : base(null)
+        {
+            _audiosource = source;
             _arguments = arguments;
+            TimeOut = source.settings.timeout;
+            _modeAudio = true;
         }
 
         public IAudioSource OutAudio;
@@ -118,43 +128,10 @@ namespace iSpyApplication.Sources.Video
         /// 
         public string Source
         {
-            get { return _source; }
-            set { _source = value; }
-        }
-
-        /// <summary>
-        /// Received bytes count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of bytes the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        public long BytesReceived
-        {
-            get
-            {
-                const long bytes = 0;
-                //bytesReceived = 0;
-                return bytes;
-            }
-        }
-
-        /// <summary>
-        /// Received frames count.
-        /// </summary>
-        /// 
-        /// <remarks>Number of frames the video source provided from the moment of the last
-        /// access to the property.
-        /// </remarks>
-        /// 
-        public int FramesReceived
-        {
-            get
-            {
-                int frames = _framesReceived;
-                _framesReceived = 0;
-                return frames;
+            get {
+                if (_modeAudio)
+                    return _audiosource.settings.sourcename;
+                return _source.settings.videosourcestring;
             }
         }
 
@@ -197,37 +174,27 @@ namespace iSpyApplication.Sources.Video
             if (!VlcHelper.VlcInstalled)
                 return;
 
-            if (string.IsNullOrEmpty(_source))
-                    throw new ArgumentException("Video source is not specified.");
+            if (string.IsNullOrEmpty(Source))
+                    throw new ArgumentException("Source is not specified.");
 
             if (IsRunning) return;
 
-            lock (_lock)
-            {
-                _stopRequested = false;               
+            _res = ReasonToFinishPlaying.DeviceLost;
 
-                // create events
-                _stopEvent = new ManualResetEvent(false);
+            // create and start new thread
 
-                // create and start new thread
-                
-                _thread = new Thread(WorkerThread) {Name = _source, IsBackground = true};
-                _thread.SetApartmentState(ApartmentState.MTA);
-                _thread.Start();
-            }
+            _thread = new Thread(WorkerThread) {Name = Source, IsBackground = true};
+            _thread.SetApartmentState(ApartmentState.MTA);
+            _thread.Start();
         }
 
         
-
-        private Thread _eventing;
-        private readonly object _lock = new object();
-
         private void WorkerThread()
         {
             bool file = false;
             try
             {
-                if (File.Exists(_source))
+                if (File.Exists(Source))
                 {
                     file = true;
                 }
@@ -260,15 +227,19 @@ namespace iSpyApplication.Sources.Video
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogExceptionToFile(ex,"VLC Stream");
-                    Logger.LogMessageToFile("VLC arguments are: " + string.Join(",", args.ToArray()), "VLC Stream");
-                    Logger.LogMessageToFile("Using default VLC configuration.", "VLC Stream");
+                    Logger.LogException(ex,"VLC Stream");
+                    Logger.LogMessage("VLC arguments are: " + string.Join(",", args.ToArray()), "VLC Stream");
+                    Logger.LogMessage("Using default VLC configuration.", "VLC Stream");
                     _mFactory = new MediaPlayerFactory(args.ToArray());
                 }
                 GC.KeepAlive(_mFactory);
             }
 
-            _mMedia = file ? _mFactory.CreateMedia<IMediaFromFile>(_source) : _mFactory.CreateMedia<IMedia>(_source);
+            var vss = Source;
+            if (!_modeAudio)
+                vss = Tokenise(vss);
+
+            _mMedia = file ? _mFactory.CreateMedia<IMediaFromFile>(vss) : _mFactory.CreateMedia<IMedia>(vss);
 
             _mMedia.Events.DurationChanged += EventsDurationChanged;
             _mMedia.Events.StateChanged += EventsStateChanged;
@@ -297,20 +268,29 @@ namespace iSpyApplication.Sources.Video
             _mPlayer.CustomAudioRenderer.SetCallbacks(ac);
             _mPlayer.CustomAudioRenderer.SetExceptionHandler(Handler);
 
-
+            
             _mPlayer.CustomRenderer.SetCallback(FrameCallback);
             _mPlayer.CustomRenderer.SetExceptionHandler(Handler);
+            
+            if (!_modeAudio)
+                _mPlayer.CustomRenderer.SetFormat(new BitmapFormat(_source.settings.vlcWidth, _source.settings.vlcHeight, ChromaType.RV24));
+            else
+            {
+                _mPlayer.CustomRenderer.SetFormat(new BitmapFormat(320,240, ChromaType.RV24));
+            }
+
             GC.KeepAlive(_mPlayer);
 
             _needsSetup = true;
-            _stopping = false;
-            _mPlayer.CustomRenderer.SetFormat(new BitmapFormat(FormatWidth, FormatHeight, ChromaType.RV24));
+
+            
+            
+
             _mPlayer.Open(_mMedia);
             _mMedia.Parse(true);
 
             _mPlayer.Delay = 0;
 
-            _framesReceived = 0;
             Duration = Time = 0;
             LastFrame = DateTime.MinValue;
 
@@ -330,31 +310,25 @@ namespace iSpyApplication.Sources.Video
 
             _videoQueue = new ConcurrentQueue<Bitmap>();
             _audioQueue = new ConcurrentQueue<byte[]>();
-            _eventing = new Thread(EventManager) { Name = "vlc eventing", IsBackground = true };
-            _eventing.Start();
-            
+
+            _abort = new ManualResetEvent(false);
             _mPlayer.Play();
+            
+            EventManager();
 
-            _stopEvent.WaitOne();
-
-            if (_eventing!=null && !_eventing.Join(0))
-                _eventing.Join();
-
-            if (!Seekable && !_stopRequested)
-            {
-                PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(ReasonToFinishPlaying.DeviceLost));
-                AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(ReasonToFinishPlaying.DeviceLost));
-            }
-            else
+            if (Seekable)
             {
                 PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(ReasonToFinishPlaying.StoppedByUser));
                 AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(ReasonToFinishPlaying.StoppedByUser));
             }
+            else
+            {
+                PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+                AudioFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
+            }
 
             DisposePlayer();
-
-            _stopEvent?.Close();
-            _stopEvent = null;
+            _abort.Close();
         }
 
         void DisposePlayer()
@@ -389,7 +363,7 @@ namespace iSpyApplication.Sources.Video
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex,"VLC");
+                Logger.LogException(ex,"VLC");
             }
             _waveProvider = null;
 
@@ -398,7 +372,7 @@ namespace iSpyApplication.Sources.Video
 
         static void Handler(Exception ex)
         {
-            Logger.LogExceptionToFile(ex, "VLC Stream");
+            Logger.LogException(ex, "VLC Stream");
 
         }
 
@@ -409,18 +383,7 @@ namespace iSpyApplication.Sources.Video
                 case MediaState.Ended:
                 case MediaState.Stopped:
                 case MediaState.Error:
-                    if (_stopEvent != null && !_stopping)
-                    {
-                        _stopping = true;
-                        try
-                        {
-                            _stopEvent?.Set();
-                        }
-                        catch
-                        {
-                            // ignored
-                        }
-                    }
+                    _abort?.Set();
                     break;
             }
 
@@ -433,37 +396,34 @@ namespace iSpyApplication.Sources.Video
             //and signals an error if more than 8 seconds ago
             if (LastFrame > DateTime.MinValue && (Helper.Now - LastFrame).TotalMilliseconds > TimeOut)
             {
-                Stop(false);
+                _res = ReasonToFinishPlaying.DeviceLost;
+                _abort?.Set();
             }
-        }
-
-        public void Stop()
-        {
-            Stop(true);
         }
 
         /// <summary>
         /// Stop video source.
         /// </summary>
         /// 
-        public void Stop(bool requested)
+        public void Stop()
         {
-            if (!IsRunning || _stopping) return;
-            // wait for thread stop
-            _stopping = true;
-            _stopRequested = requested;
-
-            try
+            if (IsRunning)
             {
-                _stopEvent?.Set();
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                _abort?.Set();
             }
-            catch
+            else
             {
-                // ignored
+                _res = ReasonToFinishPlaying.StoppedByUser;
+                PlayingFinished?.Invoke(this, new PlayingFinishedEventArgs(_res));
             }
+        }
 
-            while (_thread != null && !_thread.Join(0))
-                Application.DoEvents();
+        public void Restart()
+        {
+            if (!IsRunning) return;
+            _res = ReasonToFinishPlaying.Restart;
+            _abort?.Set();
         }
 
 
@@ -480,7 +440,14 @@ namespace iSpyApplication.Sources.Video
         void EventsTimeChanged(object sender, MediaPlayerTimeChanged e)
         {
             Time = e.NewTime;
+            if (LastFrame == DateTime.MinValue && !_modeAudio)
+            {
+                var sz = _mPlayer.GetVideoSize(0);
+                _source.settings.vlcWidth = sz.Width;
+                _source.settings.vlcHeight = sz.Height;
+            }
             LastFrame = Helper.Now;
+            
         }
 
         #region Audio Stuff
@@ -594,7 +561,7 @@ namespace iSpyApplication.Sources.Video
             }
             catch (Exception ex)
             {
-                Logger.LogExceptionToFile(ex, "VLC Audio");
+                Logger.LogException(ex, "VLC Audio");
             }
         }
 
@@ -619,33 +586,14 @@ namespace iSpyApplication.Sources.Video
         private void FrameCallback(Bitmap frame)
         {
             var nf = NewFrame;
-            if (nf== null || _stopping)
+            if (nf== null || _abort.WaitOne(0) || !EmitFrame || _modeAudio)
             {
                 frame.Dispose();
                 return;
             }
-            _framesReceived++;
 
             _videoQueue.Enqueue(frame);            
         }
-
-        /// <summary>
-        /// Calls Stop
-        /// </summary>
-        public void SignalToStop()
-        {
-            Stop();
-        }
-
-        /// <summary>
-        /// Calls Stop
-        /// </summary>
-        public void WaitForStop()
-        {
-            Stop();
-        }
-
-
 
         #endregion
 
@@ -665,8 +613,7 @@ namespace iSpyApplication.Sources.Video
         private void EventManager()
         {
             Bitmap frame;
-
-            while (_stopEvent !=null && !_stopEvent.WaitOne(5, false) && !MainForm.ShuttingDown)
+            while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
             {
                 try
                 {
@@ -702,7 +649,7 @@ namespace iSpyApplication.Sources.Video
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogExceptionToFile(ex,"VLC");
+                    Logger.LogException(ex,"VLC");
                 }
             }
             try
@@ -724,7 +671,6 @@ namespace iSpyApplication.Sources.Video
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         // Protected implementation of Dispose pattern. 
@@ -737,7 +683,6 @@ namespace iSpyApplication.Sources.Video
             {
                 try
                 {
-                    _stopEvent?.Close();
                     _mFactory?.Dispose();
                 }
                 catch

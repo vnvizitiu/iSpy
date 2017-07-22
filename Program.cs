@@ -7,7 +7,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Windows.Forms;
-using iSpy.Video.FFMPEG;
+using FFmpeg.AutoGen;
 using iSpyApplication;
 using iSpyApplication.Controls;
 using iSpyApplication.Utilities;
@@ -76,6 +76,30 @@ internal static class Program
             }
         }
 
+        var version = Environment.OSVersion.Version;
+        bool canrun = true;
+        switch (version.Major)
+        {
+            case 5:
+                canrun = false;
+                break;
+            case 6:
+                switch (version.Minor)
+                {
+                    case 0:
+                        canrun = false;
+                        break;
+                    
+                }
+                break;
+        }
+        if (!canrun)
+        {
+            MessageBox.Show("iSpy is not supported on this operating system. Please uninstall and download v6.5.8.0 instead. Your settings will be saved.");
+            Process.Start("http://www.ispyconnect.com/download.aspx");
+            return;
+        }
+
         try
         {
             Application.EnableVisualStyles();            
@@ -116,7 +140,7 @@ internal static class Program
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogExceptionToFile(ex, "startup");
+                    Logger.LogException(ex, "startup");
                 }
             }
 
@@ -184,23 +208,20 @@ internal static class Program
             
             Application.ThreadException += ApplicationThreadException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
-            
-            var ffmpegSetup = new Init();
-            ffmpegSetup.Initialise();
+           
 
             _previousExecutionState = NativeCalls.SetThreadExecutionState(NativeCalls.EsContinuous | NativeCalls.EsSystemRequired);
             
             AppIdle = new WinFormsAppIdleHandler {Enabled = false};
             var mf = new MainForm(silentstartup, command);
-
+            GC.KeepAlive(FfmpegMutex);
             
             Application.Run(mf);
             FfmpegMutex.Close();
 
-            GC.KeepAlive(FfmpegMutex);
             AppIdle.Enabled = false;
-            ffmpegSetup.DeInitialise();
-            
+            ffmpeg.avformat_network_deinit();
+
 
             if (_previousExecutionState != 0)
             {
@@ -212,7 +233,7 @@ internal static class Program
         {
             try
             {
-                Logger.LogExceptionToFile(ex);
+                Logger.LogException(ex);
             } catch
             {
                 
@@ -221,13 +242,21 @@ internal static class Program
             {
                 try
                 {
-                    Logger.LogExceptionToFile(ex);
+                    Logger.LogException(ex);
                 }
                 catch
                 {
 
                 }
             }
+        }
+        try
+        {
+            Logger.WriteLogs();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
 
@@ -242,13 +271,13 @@ internal static class Program
         try
         {
             var ex = (Exception)e.ExceptionObject;          
-            Logger.LogExceptionToFile(ex);
+            Logger.LogException(ex);
         }
         catch (Exception ex2)
         {
             try
             {
-                Logger.LogExceptionToFile(ex2);
+                Logger.LogException(ex2);
             }
             catch
             {
@@ -355,13 +384,13 @@ internal static class Program
                 //USB audio plugged/ unplugged (typically the cause) - no other way to catch this exception in the volume level control due to limitation in NAudio
             }
             if (e!=null)
-                Logger.LogExceptionToFile(e.Exception);
+                Logger.LogException(e.Exception);
         }
         catch (Exception ex2)
         {
             try
             {
-                Logger.LogExceptionToFile(ex2);
+                Logger.LogException(ex2);
             }
             catch
             {
