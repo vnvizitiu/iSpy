@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using iSpyApplication.Controls;
@@ -11,7 +12,7 @@ using Cursors = System.Windows.Forms.Cursors;
 
 namespace iSpyApplication.Sources.Video
 {
-    public class DesktopStream : VideoBase, IVideoSource
+    internal class DesktopStream : VideoBase, IVideoSource
     {
         private int _screenindex;
         private readonly Rectangle _area;
@@ -105,26 +106,34 @@ namespace iSpyApplication.Sources.Video
         }
 
         #endregion
+        [DllImport("User32.dll")]
+        private static extern IntPtr MonitorFromPoint([In]System.Drawing.Point pt, [In]uint dwFlags);
 
-        
+        [DllImport("Shcore.dll")]
+        private static extern IntPtr GetDpiForMonitor([In]IntPtr hmonitor, [In]DpiType dpiType, [Out]out uint dpiX, [Out]out uint dpiY);
+        public enum DpiType
+        {
+            Effective = 0,
+            Angular = 1,
+            Raw = 2,
+        }
+
         private Rectangle _screenSize = Rectangle.Empty;
-
+        
         // Worker thread
         private void WorkerThread()
         {
             _abort = new ManualResetEvent(false);
-            while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
+            double multiX = 0, multiY=0;
+            while (!_abort.WaitOne(10) && !MainForm.ShuttingDown)
             {
                 try
                 {
-                    DateTime start = DateTime.UtcNow;
-
                     var nf = NewFrame;
                     // provide new image to clients
-                    if (nf != null && EmitFrame)
+                    if (nf != null && ShouldEmitFrame)
                     {
-
-                        Screen s = Screen.AllScreens[_screenindex];
+                        Screen s = Screen.AllScreens[_screenindex];                        
                         if (_screenSize == Rectangle.Empty)
                         {
                             if (_area != Rectangle.Empty)
@@ -161,9 +170,21 @@ namespace iSpyApplication.Sources.Video
 
                                 if (MousePointer)
                                 {
+                                    //if (multiX < 0.01)
+                                    //{
+                                    //    uint dpiX = 0, dpiY = 0;
+                                    //    var p = new Point(s.Bounds.Left + 1, s.Bounds.Top + 1);
+                                    //    var mon = MonitorFromPoint(p, 2);
+                                    //    GetDpiForMonitor(mon, DpiType.Effective, out dpiX, out dpiY);
+                                    //    multiX = Convert.ToDouble(dpiX) /96d;
+                                    //    multiY = Convert.ToDouble(dpiY) /96d;
+                                    //}
+                                    multiX = 1; multiY = 1;
+                                    var mx=Convert.ToInt32(Cursor.Position.X * multiX - s.Bounds.X - _screenSize.X);
+                                    var my=Convert.ToInt32(Cursor.Position.Y * multiY - s.Bounds.Y - _screenSize.Y);
                                     var cursorBounds = new Rectangle(
-                                        Cursor.Position.X - s.Bounds.X - _screenSize.X,
-                                        Cursor.Position.Y - s.Bounds.Y - _screenSize.Y, Cursors.Default.Size.Width,
+                                        mx, my,
+                                        Cursors.Default.Size.Width,
                                         Cursors.Default.Size.Height);
                                     Cursors.Default.Draw(g, cursorBounds);
                                 }
@@ -171,19 +192,6 @@ namespace iSpyApplication.Sources.Video
                             // notify client
                             nf.Invoke(this, new NewFrameEventArgs(target));
                             _error = false;
-                        }
-                    }
-
-                    // wait for a while ?
-                    if (FrameInterval > 0)
-                    {
-                        // get download duration
-                        TimeSpan span = DateTime.UtcNow.Subtract(start);
-                        // milliseconds to sleep
-                        int msec = FrameInterval - (int)span.TotalMilliseconds;
-                        if (msec > 0)
-                        {
-                            _abort.WaitOne(msec);
                         }
                     }
                 }

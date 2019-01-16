@@ -28,8 +28,15 @@ namespace iSpyApplication.Sources.Audio.talk
                     talkTarget = new TalkAxis(cam.settings.audioip, cam.settings.audioport,
                         cam.settings.audiousername, cam.settings.audiopassword, source);
                     break;
+                case "Doorbird":
+                    talkTarget = new TalkDoorbird(cam.settings.audioip, cam.settings.audioport,
+                        cam.settings.audiousername, cam.settings.audiopassword, source);
+                    break;
                 case "IP Webcam (Android)":
                     talkTarget = new TalkIPWebcamAndroid(new Uri(cam.settings.videosourcestring), source);
+                    break;
+                case "Amcrest":
+                    talkTarget = new TalkAmcrest(cam.settings.audioip, cam.settings.audioport, source);
                     break;
             }
             return talkTarget;

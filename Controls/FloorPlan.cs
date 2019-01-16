@@ -351,6 +351,7 @@ namespace iSpyApplication.Controls
         
         #endregion
 
+        public string Folder { get; set; }
         public FloorPlanControl(objectsFloorplan ofp, MainForm mainForm)
         {
             MainClass = mainForm;
@@ -465,6 +466,16 @@ namespace iSpyApplication.Controls
         }
 
         public bool Highlighted { get; set; }
+
+        public void LoadFileList()
+        {
+            //no files
+        }
+
+        public void SaveFileList()
+        {
+            //no files
+        }
 
         public Color BorderColor
         {

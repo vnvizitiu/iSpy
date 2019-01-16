@@ -24,6 +24,11 @@ namespace iSpyApplication.Controls
         public MainForm MainClass;
         public bool IsMerged;
 
+        public ISpyControl Control
+        {
+            get { return MainClass.GetISpyControl(Otid, Oid); }
+        }
+
         public PreviewBox(int otid, int oid, MainForm mainForm)
         {
             Otid = otid;
@@ -197,10 +202,15 @@ namespace iSpyApplication.Controls
 
             string[] parts = FileName.Split('\\');
             string fn = parts[parts.Length - 1];
+            if (mode== Enums.PlaybackMode.Website && (WsWrapper.LoginFailed || WsWrapper.Expired))
+            {
+                mode = Enums.PlaybackMode.Default;
+            }
+
             switch (mode)
             {
                 case Enums.PlaybackMode.Website:
-                    string url = MainForm.Webserver + "/MediaViewer.aspx?oid=" + Oid + "&ot=2&fn=" + fn + "&port=" + MainForm.Conf.ServerPort;
+                    string url = MainForm.Webserver + "/MediaViewer.aspx?oid=" + Oid + "&ot="+ Otid + "&fn=" + fn + "&port=" + MainForm.Conf.ServerPort;
                     if (WsWrapper.WebsiteLive && MainForm.Conf.ServicesEnabled)
                     {
                         MainForm.OpenUrl(url);
@@ -218,7 +228,15 @@ namespace iSpyApplication.Controls
                     }
                     break;
                 case Enums.PlaybackMode.iSpy:
+                    try
+                    {
                         MainForm.InstanceReference.Play(movie, Oid, DisplayName);
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+
                     break;
                 case Enums.PlaybackMode.Default:
                     try

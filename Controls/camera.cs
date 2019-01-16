@@ -55,7 +55,7 @@ namespace iSpyApplication.Controls
         private double _alarmLevel = 0.0005;
         private double _alarmLevelMax = 1;
         private int _height = -1;
-        private DateTime _lastframeEvent = DateTime.MinValue;
+        public DateTime LastFrameEvent = DateTime.MinValue;
 
         private int _width = -1;
         private bool _pluginTrigger;
@@ -261,7 +261,7 @@ namespace iSpyApplication.Controls
             {
                 if (_plugin != null)
                 {
-                    try {_plugin.GetType().GetMethod("Dispose").Invoke(_plugin, null);}
+                    try {_plugin.GetType().GetMethod("Dispose")?.Invoke(_plugin, null);}
                     catch
                     {
                         // ignored
@@ -391,7 +391,7 @@ namespace iSpyApplication.Controls
             if (VideoSource != null)
             {
                 _framerates = new Queue<double>();
-                _lastframeEvent = DateTime.MinValue;
+                LastFrameEvent = DateTime.MinValue;
                 _motionRecentlyDetected = false;
                 if (!CW.IsClone)
                 {
@@ -472,16 +472,16 @@ namespace iSpyApplication.Controls
         {
             var nf = NewFrame;
             var f = e.Frame;
+
             if (nf==null || f==null)
                 return;
-    
-            
-            if (_lastframeEvent > DateTime.MinValue)
+
+            if (LastFrameEvent > DateTime.MinValue)
             {
                 CalculateFramerates();
             }
             
-            _lastframeEvent = Helper.Now;
+            LastFrameEvent = Helper.Now;
 
             if (_updateResources)
             {
@@ -615,9 +615,9 @@ namespace iSpyApplication.Controls
                 }
             }
 
-            
             nf.Invoke(this, new NewFrameEventArgs(bmOrig));
-            
+
+
             if (bMotion)
             {
                 TriggerDetect(this);
@@ -843,7 +843,7 @@ namespace iSpyApplication.Controls
 
                 if (dratio > dratiomin)
                 {
-                    CW.PTZ.SendPTZDirection(angle, 1);
+                    CW.PTZ.SendPTZDirection(angle);
                     CW.LastAutoTrackSent = Helper.Now;
                     CW.Ptzneedsstop = true;
                 }
@@ -905,49 +905,11 @@ namespace iSpyApplication.Controls
             _pluginTrigger = true;
         }
 
-        private int ResizeWidth(Size originalSize)
-        {
-            var w = originalSize.Width;
-
-            if (CW.Camobject.settings.resizeWidth > 0)
-                w = CW.Camobject.settings.resizeWidth;
-            else
-            {
-                if (CW.Camobject.settings.resizeHeight > 0)
-                {
-                    var ar = Convert.ToDouble(originalSize.Width)/Convert.ToDouble(originalSize.Height);
-                    w = Convert.ToInt32(CW.Camobject.settings.resizeHeight * ar);
-                }
-            }
-            return w%2 == 0 ? w : w + 1;
-        }
-
-        private int ResizeHeight(Size originalSize)
-        {
-            var h = originalSize.Height;
-
-            if (CW.Camobject.settings.resizeHeight > 0)
-                h = CW.Camobject.settings.resizeHeight;
-            else
-            {
-                if (CW.Camobject.settings.resizeWidth > 0)
-                {
-                    var ar = Convert.ToDouble(originalSize.Width)/Convert.ToDouble(originalSize.Height);
-                    h = Convert.ToInt32(CW.Camobject.settings.resizeWidth / ar);
-                }
-            }
-
-            return h%2==0?h:h+1;
-        }
-
-        private Size ResizeSize(Size originalSize)
-        {
-            return new Size(ResizeWidth(originalSize),ResizeHeight(originalSize));
-        }
-
+        
         private Bitmap ResizeBmOrig(Bitmap f)
         {
-            var sz = ResizeSize(f.Size);
+            var sz = Helper.CalcResizeSize(CW.Camobject.settings.resize, f.Size,
+                new Size(CW.Camobject.settings.resizeWidth, CW.Camobject.settings.resizeHeight));
             if (CW.Camobject.settings.resize && f.Size!=sz)
             {
 
@@ -973,12 +935,12 @@ namespace iSpyApplication.Controls
             }
             if (CW.HasClones)
                 return new Bitmap(f);
-            return f;                    
+            return (Bitmap)f.Clone();                    
         }
 
         private void CalculateFramerates()
         {
-            TimeSpan tsFr = Helper.Now - _lastframeEvent;
+            TimeSpan tsFr = Helper.Now - LastFrameEvent;
             _framerates.Enqueue(1000d/tsFr.TotalMilliseconds);
             if (_framerates.Count >= 30)
                 _framerates.Dequeue();

@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.ServiceModel.Configuration;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AForge.Math;
 using iSpyApplication.iSpyWS;
 using iSpyApplication.Utilities;
 
@@ -258,6 +260,7 @@ namespace iSpyApplication
             }
         }
 
+        private static string lastResponse = "";
         public static void DoPingRequest()
         {
             int port = MainForm.Conf.ServerPort;
@@ -265,20 +268,24 @@ namespace iSpyApplication
                 port = MainForm.Conf.LANPort;
 
             LastLiveCheck = Helper.Now;
-
+            string[] r = null;
             try
             {
                 //using IPAddress in both as the website determines remoteip for ipv4 or uses ipv6 for both internal and external
 
-                Wsa.PingAlive(MainForm.Conf.WSUsername, MainForm.Conf.WSPassword, port,
-                    MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, MainForm.IPAddress);
-                
+                r = Wsa.PingAlive(MainForm.Conf.WSUsername, MainForm.Conf.WSPassword, port, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, MainForm.IPAddress);
+                if (r[0] != lastResponse)
+                {
+                    Logger.LogMessage("Ping: "+r[0]);
+                }
+                lastResponse = r[0];
                 WebsiteLive = true;
                 _pingIndex = 0;
             }
-            catch
+            catch(Exception ex)
             {
                 WebsiteLive = false;
+                Logger.LogException(ex,"Ping");
                 _pingIndex = Math.Min(_pingIndex+1, PingDelays.Length-1);
             }
             _pingRequestThread = null;
@@ -446,7 +453,12 @@ namespace iSpyApplication
 
             try
             {
-                r = Wsa.Connect2(MainForm.Conf.WSUsername, MainForm.Conf.WSPassword, port,
+                if (MainForm.CustomWebserver)
+                    r = Wsa.Connect2(MainForm.Conf.WSUsername, MainForm.Conf.WSPassword, port, MainForm.Identifier, tryLoopback, Application.ProductVersion,
+                        MainForm.Conf.ServerName, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, MainForm.Affiliateid,
+                        X509.SslEnabled);
+                else
+                    r = Wsa.Connect4(MainForm.Conf.WSUsername, MainForm.Conf.WSPassword, port,
                     MainForm.Identifier, tryLoopback, Application.ProductVersion,
                     MainForm.Conf.ServerName, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, MainForm.Affiliateid,
                     X509.SslEnabled);
@@ -467,7 +479,8 @@ namespace iSpyApplication
 
             if (WebsiteLive)
             {
-                LoginFailed = (r == "Webservices_LoginFailed");
+                LoginFailed = r == "Webservices_LoginFailed" || r == "Expired";
+                Expired = r == "Expired";
                 if (r != "OK")
                 {
                     Logger.LogError("Webservices: " + r);
@@ -480,6 +493,7 @@ namespace iSpyApplication
         }
 
         public static bool LoginFailed;
+        public static bool Expired;
 
         public static string[] TestConnection(string username, string password, bool tryLoopback)
         {
@@ -491,7 +505,10 @@ namespace iSpyApplication
 
             try
             {
-                r = Wsa.TestConnection2(username, password, port, MainForm.Identifier, tryLoopback, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, X509.SslEnabled);
+                if (MainForm.CustomWebserver)
+                    r = Wsa.TestConnection2(username, password, port, MainForm.Identifier, tryLoopback, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, X509.SslEnabled);
+                else
+                    r = Wsa.TestConnection3(username, password, port, MainForm.Identifier, tryLoopback, MainForm.Conf.IPMode == "IPv4", MainForm.IPAddress, X509.SslEnabled);
                 WebsiteLive = true;
             }
             catch (Exception ex)
@@ -501,7 +518,7 @@ namespace iSpyApplication
             }
             if (WebsiteLive)
             {
-                LoginFailed = (r[0] == "Webservices_LoginFailed");
+                LoginFailed = (r[0] == "Webservices_LoginFailed" || r[0]=="Expired");
                 if (r.Length == 1 && r[0] != "OK")
                 {
                     r[0] = LocRm.GetString(r[0]);                    

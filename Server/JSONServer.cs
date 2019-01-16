@@ -18,6 +18,7 @@ using iSpyApplication.Utilities;
 using NAudio.Wave;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SharpDX.DirectInput;
 using DateTime = System.DateTime;
 using File = System.IO.File;
 using IPAddress = System.Net.IPAddress;
@@ -27,9 +28,28 @@ namespace iSpyApplication.Server
     public partial class LocalServer
     {
         private static Scanner _scanner;
-        private static CameraScanner _deviceScanner;
+        private static CameraDiscovery.CameraScanner _deviceScanner;
+
+        public static CameraDiscovery.CameraScanner DeviceScanner
+        {
+            get
+            {
+                if (_deviceScanner == null)
+                {
+                    _deviceScanner = new CameraDiscovery.CameraScanner();
+                    _deviceScanner.URLFound += DeviceScannerURLFound;
+                }
+                return _deviceScanner;
+            }
+        }
+
+        static void DeviceScannerURLFound(object sender, CameraDiscovery.ConnectionOptionEventArgs e)
+        {
+            _devicescanResults.Add(e.Co);
+        }
+
         private List<NetworkDevice> _scanResults = new List<NetworkDevice>();
-        private List<ConnectionOption> _devicescanResults = new List<ConnectionOption>();
+        private static List<ConnectionOption> _devicescanResults = new List<ConnectionOption>();
 
         private void LoadJson(string sPhysicalFilePath, string sRequest, string sBuffer, string sHttpVersion, HttpRequest req)
         {
@@ -133,14 +153,15 @@ namespace iSpyApplication.Server
 
                                 string audioUri = "";
                                 int audioSourceTypeID = -1;
+                                var disc = new CameraDiscovery.URLDiscovery(origUri);
                                 if (!string.IsNullOrEmpty(mmurl.AudioSource))
                                 {
-                                    audioUri = Conf.GetAddr(mmurl, origUri, channel, username, password, true).ToString();
+                                    audioUri = disc.GetAddr(mmurl, channel, username, password, true).ToString();
                                     audioSourceTypeID = Conf.GetSourceType(mmurl.AudioSource, 1);
                                 }
 
                                 int sourceTypeID = Conf.GetSourceType(mmurl.Source, 2);
-                                string sourceUri = Conf.GetAddr(mmurl, origUri, channel, username, password).ToString();
+                                string sourceUri = disc.GetAddr(mmurl, channel, username, password).ToString();
 
 
                                 oid = MainForm.NextCameraId;
@@ -208,7 +229,6 @@ namespace iSpyApplication.Server
                                     cw.Camobject.settings.ptzchannel = channel.ToString(CultureInfo.InvariantCulture);
                                     cw.Camobject.settings.ptzusername = username;
                                     cw.Camobject.settings.ptzpassword = password;
-                                    cw.Camobject.settings.ptzurlbase = MainForm.PTZs.Single(p => p.id == ptzid).CommandURL;
                                 }
 
                                 if (!string.IsNullOrEmpty(mmurl.AudioModel))
@@ -327,11 +347,6 @@ namespace iSpyApplication.Server
                     break;
                 case "scandevice":
                     {
-                        if (_deviceScanner != null)
-                        {
-                            _deviceScanner.QuitScanner();
-                            _deviceScanner = null;
-                        }
                         Uri uri;
                         if (!Uri.TryCreate(GetVar(sPhysicalFilePath, "url"), UriKind.Absolute, out uri))
                         {
@@ -346,17 +361,20 @@ namespace iSpyApplication.Server
                             break;
                         }
                         make = m.name;
+
                         _devicescanResults = new List<ConnectionOption>();
-                        _deviceScanner = new CameraScanner();
-                        _deviceScanner.URLFound += DeviceScannerURLFound;
-                        _deviceScanner.ScanComplete += DeviceScannerScanComplete;
-                        _deviceScanner.Channel = Convert.ToInt32(GetVar(sPhysicalFilePath, "channel"));
-                        _deviceScanner.Make = make;
-                        _deviceScanner.Model = GetVar(sPhysicalFilePath, "model");
-                        _deviceScanner.Username = GetVar(sPhysicalFilePath, "username");
-                        _deviceScanner.Password = GetVar(sPhysicalFilePath, "password");
-                        _deviceScanner.Uri = uri;
-                        _deviceScanner.ScanCamera(m);
+                        DeviceScanner.Stop();
+
+                        DeviceScanner.URLFound += DeviceScannerURLFound;
+
+                        DeviceScanner.Channel = Convert.ToInt32(GetVar(sPhysicalFilePath, "channel"));
+                        DeviceScanner.Make = make;
+                        DeviceScanner.Model = GetVar(sPhysicalFilePath, "model");
+                        DeviceScanner.Username = GetVar(sPhysicalFilePath, "username");
+                        DeviceScanner.Password = GetVar(sPhysicalFilePath, "password");
+                        DeviceScanner.Uri = uri;
+                        DeviceScanner.ScanCamera(m);
+
 
                         resp = "{\"running\":true}";
 
@@ -364,7 +382,7 @@ namespace iSpyApplication.Server
                     break;
                 case "getscandeviceresults":
                     {
-                        resp = "{\"finished\":" + (_deviceScanner == null).ToString().ToLower();
+                        resp = "{\"finished\":" + (!DeviceScanner.Running).ToString().ToLower();
                         resp += ",\"results\":[";
                         if (_devicescanResults != null)
                         {
@@ -520,23 +538,24 @@ namespace iSpyApplication.Server
                     break;
                 case "onvifdiscover":
                     {
-                        string un = GetVar(cmd, "un");
-                        string pwd = GetVar(cmd, "pwd");
-                        string url = GetVar(cmd, "surl");
+                        string un = GetVar(sRequest, "un");
+                        string pwd = GetVar(sRequest, "pwd");
+                        string url = GetVar(sRequest, "surl");
 
                         try
                         {
-                            var dev = new ONVIFDevice(url, un, pwd);
-                            int i = 0;
-
-                            foreach (var p in dev.Profiles)
+                            var dev = new ONVIFDevice(url, un, pwd,0,15);
+                            var p = dev.Profiles;
+                            if (p == null)
+                                throw new ApplicationException("ONVIF failed to connect");
+                            for (int i = 0; i < p.Length; i++)
                             {
-                                var b = p?.VideoSourceConfiguration?.Bounds;
-                                if (b != null && b.width > 0)
+                                dev.SelectProfile(i);
+                                var ep = dev.StreamEndpoint;
+                                if (ep != null && ep.Width > 0)
                                 {
-                                    resp += string.Format(template, b.width + "x" + b.height, i);
+                                    resp += string.Format(template, dev.Profile.Name + " (" + ep.Width + "x" + ep.Height + ")", i);
                                 }
-                                i++;
                             }
                         }
                         catch (Exception ex)
@@ -718,16 +737,6 @@ namespace iSpyApplication.Server
                                         case "9":
                                             if (oc.settings.namevaluesettings.IndexOf("use=", StringComparison.Ordinal) == -1)
                                                 oc.settings.namevaluesettings = "use=ffmpeg,transport=RTSP";
-
-                                            if (oc.settings.onvifident != null)
-                                            {
-                                                string[] cfg = oc.settings.onvifident.Split('|');
-                                                if (cfg.Length == 2)
-                                                {
-                                                    oc.settings.namevaluesettings += ",profileid=" + cfg[1];
-                                                    oc.settings.onvifident = cfg[0];
-                                                }
-                                            }
 
                                             string svlc = "";
                                             if (VlcHelper.VlcInstalled)
@@ -1330,7 +1339,7 @@ namespace iSpyApplication.Server
                                     if (ptzEntry?.ExtendedCommands?.Command != null)
                                     {
                                         commands = ptzEntry.ExtendedCommands.Command.Aggregate(commands,
-                                            (current, extcmd) => current + string.Format(template, extcmd.Name.JsonSafe(), extcmd.Value));
+                                            (current, extcmd) => current + string.Format(template, extcmd.Name.JsonSafe(), extcmd.Value.JsonSafe()));
                                     }
                                     if (commands == "")
                                     {
@@ -1757,7 +1766,7 @@ namespace iSpyApplication.Server
                                 var files = new List<string>();
                                 foreach (var file in d.files)
                                 {
-                                    success = Helper.ArchiveFile(folderpath + file.name.ToString());
+                                    success = Helper.ArchiveFile(io, folderpath + file.name.ToString())!="NOK";
                                     if (!success)
                                     {
                                         t = LocRm.GetString("ArchiveFailed", lc);
@@ -1841,15 +1850,6 @@ namespace iSpyApplication.Server
             MainForm.NeedsMediaRefresh = Helper.Now;
         }
 
-        void DeviceScannerScanComplete(object sender, EventArgs e)
-        {
-            _deviceScanner = null;
-        }
-
-        void DeviceScannerURLFound(object sender, ConnectionOptionEventArgs e)
-        {
-            _devicescanResults.Add(e.CO);
-        }
 
         void ScannerScanFinished(object sender, EventArgs e)
         {
@@ -1989,11 +1989,11 @@ namespace iSpyApplication.Server
                     case "settings":
                     {
                         PopulateObject(d, MainForm.Conf);
-                        if (!string.IsNullOrEmpty(MainForm.Conf.Archive))
+                        if (!string.IsNullOrEmpty(MainForm.Conf.ArchiveNew))
                         {
-                            MainForm.Conf.Archive = MainForm.Conf.Archive.Replace("/", @"\");
-                            if (!MainForm.Conf.Archive.EndsWith(@"\"))
-                                MainForm.Conf.Archive += @"\";
+                            MainForm.Conf.ArchiveNew = MainForm.Conf.ArchiveNew.Replace("/", @"\");
+                            if (!MainForm.Conf.ArchiveNew.EndsWith(@"\"))
+                                MainForm.Conf.ArchiveNew += @"\";
                         }
                         ReloadAllowedIPs();
                         ReloadAllowedReferrers();
@@ -2365,6 +2365,11 @@ namespace iSpyApplication.Server
                                 if (c.settings.sourceindex == 9)
                                 {
                                     c.ptz = -5;
+                                    var ss = NV(c.settings.namevaluesettings, "use");
+                                    //c.settings.sourceindex = ss == "VLC" ? 5 : 2;
+                                    int pi = 0;
+                                    int.TryParse(NV(c.settings.namevaluesettings, "profilename"), out pi);
+                                    c.settings.videosourcestring = "";
                                 }
 
                                 var cw = MainForm.InstanceReference.GetCameraWindow(c.id);

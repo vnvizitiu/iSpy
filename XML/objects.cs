@@ -620,9 +620,9 @@ public partial class objectsCameraSettings {
     
     private string ptzpelcoconfigField;
     
-    private int maxframerateField;
+    private decimal maxframerateField;
     
-    private int maxframeraterecordField;
+    private decimal maxframeraterecordField;
     
     private int reconnectintervalField;
     
@@ -668,6 +668,8 @@ public partial class objectsCameraSettings {
     
     private objectsCameraSettingsPip pipField;
     
+    private objectsCameraSettingsOnvif onvifField;
+    
     private int desktopresizewidthField;
     
     private int desktopresizeheightField;
@@ -698,6 +700,10 @@ public partial class objectsCameraSettings {
     
     private int vlcHeightField;
     
+    private bool useGPUField;
+    
+    private string encoderField;
+    
     public objectsCameraSettings() {
         this.frameintervalField = 0;
         this.timestampfontsizeField = 10;
@@ -719,8 +725,8 @@ public partial class objectsCameraSettings {
         this.ptztimetohomeField = 60;
         this.ptzautotrackmodeField = 0;
         this.ptzpelcoconfigField = "";
-        this.maxframerateField = 10;
-        this.maxframeraterecordField = 10;
+        this.maxframerateField = ((decimal)(10m));
+        this.maxframeraterecordField = ((decimal)(10m));
         this.reconnectintervalField = 0;
         this.namevaluesettingsField = "";
         this.accessgroupsField = "";
@@ -749,6 +755,8 @@ public partial class objectsCameraSettings {
         this.resizeHeightField = -1;
         this.vlcWidthField = -1;
         this.vlcHeightField = -1;
+        this.useGPUField = false;
+        this.encoderField = "software";
     }
     
     /// <remarks/>
@@ -1272,7 +1280,7 @@ public partial class objectsCameraSettings {
     }
     
     /// <remarks/>
-    public int maxframerate {
+    public decimal maxframerate {
         get {
             return this.maxframerateField;
         }
@@ -1282,7 +1290,7 @@ public partial class objectsCameraSettings {
     }
     
     /// <remarks/>
-    public int maxframeraterecord {
+    public decimal maxframeraterecord {
         get {
             return this.maxframeraterecordField;
         }
@@ -1512,6 +1520,16 @@ public partial class objectsCameraSettings {
     }
     
     /// <remarks/>
+    public objectsCameraSettingsOnvif onvif {
+        get {
+            return this.onvifField;
+        }
+        set {
+            this.onvifField = value;
+        }
+    }
+    
+    /// <remarks/>
     [System.Xml.Serialization.XmlAttributeAttribute()]
     public int desktopresizewidth {
         get {
@@ -1684,6 +1702,30 @@ public partial class objectsCameraSettings {
         }
         set {
             this.vlcHeightField = value;
+        }
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.ComponentModel.DefaultValueAttribute(false)]
+    public bool useGPU {
+        get {
+            return this.useGPUField;
+        }
+        set {
+            this.useGPUField = value;
+        }
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.ComponentModel.DefaultValueAttribute("software")]
+    public string encoder {
+        get {
+            return this.encoderField;
+        }
+        set {
+            this.encoderField = value;
         }
     }
 }
@@ -1947,6 +1989,44 @@ public partial class objectsCameraSettingsPip {
         }
         set {
             this.configField = value;
+        }
+    }
+}
+
+/// <remarks/>
+[System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "4.0.30319.33440")]
+[System.SerializableAttribute()]
+[System.Diagnostics.DebuggerStepThroughAttribute()]
+[System.ComponentModel.DesignerCategoryAttribute("code")]
+[System.Xml.Serialization.XmlTypeAttribute(AnonymousType=true)]
+public partial class objectsCameraSettingsOnvif {
+    
+    private int rtspportField;
+    
+    private int timeoutField;
+    
+    public objectsCameraSettingsOnvif() {
+        this.rtspportField = 0;
+        this.timeoutField = 15;
+    }
+    
+    /// <remarks/>
+    public int rtspport {
+        get {
+            return this.rtspportField;
+        }
+        set {
+            this.rtspportField = value;
+        }
+    }
+    
+    /// <remarks/>
+    public int timeout {
+        get {
+            return this.timeoutField;
+        }
+        set {
+            this.timeoutField = value;
         }
     }
 }
@@ -2785,6 +2865,8 @@ public partial class objectsCameraRecorder {
     
     private int ftpcountermaxField;
     
+    private int bitrateField;
+    
     public objectsCameraRecorder() {
         this.minrecordtimeField = 0;
         this.timelapseenabledField = false;
@@ -2798,6 +2880,7 @@ public partial class objectsCameraRecorder {
         this.ftpfilenameField = "";
         this.ftpcounterField = 0;
         this.ftpcountermaxField = 20;
+        this.bitrateField = 0;
     }
     
     /// <remarks/>
@@ -2996,6 +3079,18 @@ public partial class objectsCameraRecorder {
         }
         set {
             this.ftpcountermaxField = value;
+        }
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlAttributeAttribute()]
+    [System.ComponentModel.DefaultValueAttribute(0)]
+    public int bitrate {
+        get {
+            return this.bitrateField;
+        }
+        set {
+            this.bitrateField = value;
         }
     }
 }

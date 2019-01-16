@@ -107,11 +107,13 @@
                         { "text": "None", "value": "None" },
                         { "text": "Local Playback", "value": "Local Playback" },
                         { "text": "Axis", "value": "Axis", "noTranslate": true  },
+                        { "text": "Doorbird", "value": "Doorbird", "noTranslate": true  },
                         { "text": "Foscam", "value": "Foscam", "noTranslate": true  },
                         { "text": "iSpy Server", "value": "iSpy Server", "noTranslate": true  },
                         { "text": "Network Kinect", "value": "Network Kinect", "noTranslate": true  },
-                        { "text": "IP Webcam (Android)", "value": "IP Webcam (Android)", "noTranslate": true  }
-                    ],
+                        { "text": "IP Webcam (Android)", "value": "IP Webcam (Android)", "noTranslate": true  },
+                        { "text": "Amcrest", "value": "Amcrest", "noTranslate": true  }
+                      ],
                     "help": "Controls where audio is played back when talking"
                 }
             ]
@@ -239,7 +241,6 @@
                     "options": [ ]
                 },
                 { "text": "Pelco", "value": "...", "type": "Button", "action": "editpelco" },
-                { "text": "URL", "value": "", "type": "String", "id": "txtPTZURL", "bindto": "settings.ptzurlbase" },
                 { "text": "Channel", "value": "", "type": "String", "bindto": "settings.ptzchannel" },
                 { "text": "Username", "value": "", "type": "String", "bindto": "settings.ptzusername" },
                 { "text": "Password", "value": "", "type": "Password", "bindto": "settings.ptzpassword" },

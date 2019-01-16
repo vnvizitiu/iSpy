@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,9 +10,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 using iSpyApplication.Controls;
 using iSpyApplication.Utilities;
+using NAudio.Dsp;
 
 namespace iSpyApplication
 {
@@ -39,10 +43,185 @@ namespace iSpyApplication
             }
         }
 
+        public static int GetSourceType(string source, int ot)
+        {
+            var _vlc = VlcHelper.VlcInstalled;
+            if (source == "VLC" && !_vlc)
+                source = "FFMPEG";
+
+            switch (ot)
+            {
+                case 1:
+                    switch (source.ToUpper())
+                    {
+                        case "FFMPEG":
+                            return 3;
+                        case "VLC":
+                            return 2;
+                        case "WAVSTREAM":
+                            return 6;
+                    }
+                    return 3;
+                default:
+                    switch (source.ToUpper())
+                    {
+                        case "JPEG":
+                            return 0;
+                        case "MJPEG":
+                            return 1;
+                        case "FFMPEG":
+                            return 2;
+                        case "VLC":
+                            return 5;
+                    }
+                    return 2;
+            }
+
+            
+        }
+        public static Size CalcResizeSize(bool resize, Size nativeSize, Size resizeSize)
+        {
+            var es = MakeEven(new Size(nativeSize.Width, nativeSize.Height));
+
+            if (!resize || (resizeSize.Width < 1 && resizeSize.Height < 1))
+                return es;
+            
+
+            int w = nativeSize.Width;
+            if (resizeSize.Width > 0)
+                w = resizeSize.Width;
+
+            int h = nativeSize.Height;
+            if (resizeSize.Height > 0)
+                h = resizeSize.Height;
+
+            var ar = Convert.ToDouble(nativeSize.Width) / Convert.ToDouble(nativeSize.Height);
+
+            if (resizeSize.Width == 0) //auto width based on height
+            {
+                return MakeEven(new Size(Convert.ToInt32(ar * h), h));
+            }
+
+            if (resizeSize.Height == 0) //auto height based on width
+            {
+                return MakeEven(new Size(w, Convert.ToInt32(w / ar)));
+            }
+
+            return MakeEven(new Size(w, h));
+
+        }
+
+        private static Size MakeEven(Size sz)
+        {
+            if (sz.Width % 2 != 0)
+            {
+                sz.Width++;
+            }
+            if (sz.Height % 2 != 0)
+            {
+                sz.Height++;
+            }
+
+            return sz;
+        }
+        public static byte[] ReadBytesWithRetry(FileInfo fi)
+        {
+            int numTries = 0;
+            while (numTries<10)
+            {
+                ++numTries;
+                try
+                {
+                    using (FileStream fs = File.Open(fi.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        var byteArray = new byte[fs.Length];
+                        fs.Read(byteArray, 0, (int) fs.Length);
+                        return byteArray;
+                    }
+                }
+                catch (IOException)
+                {
+                   
+                   Thread.Sleep(500);
+                }
+            }
+            throw new Exception("Cannot read file: "+fi.Name+" - something else has a lock on it.");
+        }
+
+
+        public static Bitmap GetSpectrumAnalyserImage(Complex[] fft, int w, int h)
+        {
+            Size sz = new Size(w, h);
+
+            if (fft != null)
+            {
+                var r = fft.ToList();
+                const int bars = 128;
+                double xScale = Convert.ToDouble(w) / bars;
+                int t = r.Count / 2 / bars;
+                var img = new Bitmap(sz.Width, sz.Height, PixelFormat.Format24bppRgb);
+
+                using (Graphics g = Graphics.FromImage(img))
+                {
+                    g.Clear(Color.White);
+                    for (int n = 0; n < r.Count / 2; n += t)
+                    {
+                        // averaging out bins
+                        double yPos = 0;
+                        for (int b = 0; b <= t; b++)
+                        {
+                            yPos += GetYPosLog(r[n + b], h);
+                        }
+                        int ind = n / t;
+                        double pow = yPos / t;
+                        if (pow > h)
+                            pow = h;
+
+                        var rect = new Rectangle(Convert.ToInt32(ind * xScale), Convert.ToInt32(pow),
+                            Convert.ToInt32(xScale),
+                            Convert.ToInt32(h - pow));
+
+                        g.FillRectangle(Brushes.CornflowerBlue, rect.X, rect.Y, rect.Width, rect.Height);
+                    }
+                }
+                return img;
+
+            }
+            return null;
+        }
+
+        public static double GetYPosLog(Complex c, double height)
+        {
+            double intensityDb = 10 * Math.Log10(Math.Sqrt(c.X * c.X + c.Y * c.Y));
+            double minDB = -60;
+            if (intensityDb < minDB) intensityDb = minDB;
+            double percent = intensityDb / minDB;
+            // we want 0dB to be at the top (i.e. yPos = 0)
+            double yPos = percent * height;
+            return yPos;
+        }
+        //public static string RTSPMode(int mode)
+        //{
+        //    switch (mode)
+        //    {
+        //        case 1:
+        //            return "tcp,udp";
+        //        case 2:
+        //            return "udp,tcp";
+        //        case 3:
+        //            return "udp_multicast";
+        //        case 4:
+        //            return "http";
+        //        default:
+        //            return "udp,tcp";
+        //    }
+        //}
         public static string RTSPMode(int mode)
         {
             switch (mode)
             {
+                case 1:
+                    return "tcp";
                 case 2:
                     return "udp";
                 case 3:
@@ -50,10 +229,15 @@ namespace iSpyApplication
                 case 4:
                     return "http";
                 default:
-                    return "tcp";
+                    return "";
             }
         }
-
+        public static bool ThreadRunning(Thread t)
+        {
+            if (t == null)
+                return false;
+            return !t.Join(0);
+        }
         public static string NVLookup(CameraWindow c, string name)
         {
             var t = c.Camobject.settings.namevaluesettings.Split(',').ToList();
@@ -62,6 +246,21 @@ namespace iSpyApplication
                 return "";
             return nv.Split('=')[1].Trim();
 
+        }
+
+        public static void NVSet(CameraWindow c, string name, string val)
+        {
+            var t = c.Camobject.settings.namevaluesettings.Split(',').ToList();
+            var nv = t.FirstOrDefault(p => p.ToLowerInvariant().StartsWith(name.ToLowerInvariant() + "="));
+            if (nv == null)
+            {
+                t.Add(name + "=" + val);
+            }
+            else
+            {
+                nv = name + "=" + val;
+            }
+            c.Camobject.settings.namevaluesettings = string.Join(",", t);
         }
 
         public static string GetLevelDataPoints(StringBuilder motionData)
@@ -305,19 +504,37 @@ namespace iSpyApplication
 
         }
 
-        internal static bool ArchiveFile(string filename)
+        internal static string ArchiveFile(ISpyControl ctrl, string filename)
         {
-
-            if (!string.IsNullOrEmpty(MainForm.Conf.Archive) && Directory.Exists(MainForm.Conf.Archive))
+            if (ctrl == null || !string.IsNullOrEmpty(MainForm.Conf.ArchiveNew))
             {
-                string fn = filename.Substring(filename.LastIndexOf("\\", StringComparison.Ordinal) + 1);
                 if (File.Exists(filename))
                 {
+                    string fn = filename.Substring(filename.LastIndexOf("\\", StringComparison.Ordinal) + 1);
+                    var isGrab = filename.EndsWith(".jpg") && filename.Contains(@"grabs\");
                     try
                     {
-                        if (!File.Exists(MainForm.Conf.Archive + fn))
-                            File.Copy(filename, MainForm.Conf.Archive + fn);
-                        return true;
+                        string ap = MainForm.Conf.ArchiveNew;
+                        ap = ap.Replace("{NAME}", (ctrl!=null?ctrl.ObjectName:"Unknown"));
+                        ap = ap.Replace("{DIR}", (ctrl != null ? ctrl.Folder: "Unknown"));
+                        ap = ap.Replace("{GRABS}", isGrab ? @"grabs\" : "");
+                        int j = 0;
+                        while (ap.IndexOf("{", StringComparison.Ordinal) != -1 && j<20)
+                        {
+                            ap = string.Format(CultureInfo.InvariantCulture, ap, DateTime.Now);
+                            j++;
+                        }
+
+                        if (!ap.EndsWith(@"\"))
+                            ap += @"\";
+
+                        if (!File.Exists(ap + fn))
+                        {
+                            Directory.CreateDirectory(ap);
+                            File.Copy(filename, ap + fn);
+                        }
+
+                        return ap;
                     }
                     catch (Exception ex)
                     {
@@ -325,33 +542,25 @@ namespace iSpyApplication
                     }
                 }
             }
-            return false;
+            return "NOK";
 
         }
-
-        internal static bool ArchiveAndDelete(string filename)
+        
+        internal static bool ArchiveAndDelete(ISpyControl ctrl, string filename)
         {
-
-            if (!string.IsNullOrEmpty(MainForm.Conf.Archive) && Directory.Exists(MainForm.Conf.Archive))
+            if (ArchiveFile(ctrl, filename) != "NOK")
             {
-                string fn = filename.Substring(filename.LastIndexOf("\\", StringComparison.Ordinal) + 1);
-                if (File.Exists(filename))
+                try
                 {
-                    try
-                    {
-                        if (!File.Exists(MainForm.Conf.Archive + fn))
-                            File.Copy(filename, MainForm.Conf.Archive + fn);
-                        File.Delete(filename);
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogException(ex);
-                    }
+                    File.Delete(filename);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException(ex);
                 }
             }
             return false;
-
         }
 
         internal static string GetMediaDirectory(int ot, int oid)
@@ -847,7 +1056,9 @@ namespace iSpyApplication
                 new ScheduleAction("Messaging: ON",21,ScheduleAction.ActionTypeID.All),
                 new ScheduleAction("Messaging: OFF",22,ScheduleAction.ActionTypeID.All),
                 new ScheduleAction("PTZ Tracking: ON",23,ScheduleAction.ActionTypeID.CameraOnly),
-                new ScheduleAction("PTZ Tracking: OFF",24,ScheduleAction.ActionTypeID.CameraOnly)
+                new ScheduleAction("PTZ Tracking: OFF",24,ScheduleAction.ActionTypeID.CameraOnly),
+                new ScheduleAction("Listen: ON",25,ScheduleAction.ActionTypeID.All),
+                new ScheduleAction("Listen: OFF",26,ScheduleAction.ActionTypeID.All)
             };
         public static string[] WebRestrictedAlertTypes = { "S", "EXE" };
         public static string ScheduleDescription(int id)
@@ -855,22 +1066,17 @@ namespace iSpyApplication
             return Actions.Single(p => p.ID == id).ToString();
         }
 
+        internal static int CalcCRF(int quality)
+        {
+            return Convert.ToInt32(30d - (quality - 1) * ((30d - 18d) / 9d));
+        }
         internal static bool CanArchive
         {
             get
             {
-                if (!string.IsNullOrEmpty(MainForm.Conf.Archive))
+                if (!string.IsNullOrEmpty(MainForm.Conf.ArchiveNew))
                 {
-                    try
-                    {
-                        if (Directory.Exists(MainForm.Conf.Archive))
-                            return true;
-                    }
-                    catch
-                    {
-                        //invalid location
-                    }
-
+                   return true;
                 }
                 return false;
             }
@@ -911,25 +1117,23 @@ namespace iSpyApplication
 
         #region Nested type: FrameAction
 
-        public struct FrameAction
+        public class FrameAction
         {
             public byte[] Content;
             public int DataLength;
             public readonly double Level;
             public readonly DateTime TimeStamp;
             public readonly Enums.FrameType FrameType;
+            public Bitmap Frame;
 
             public FrameAction(Bitmap frame, double level, DateTime timeStamp)
             {
                 Level = level;
                 TimeStamp = timeStamp;
-                using (var ms = new MemoryStream())
-                {
-                    frame.Save(ms, MainForm.Encoder, MainForm.EncoderParams);
-                    Content = ms.GetBuffer();
-                }
                 FrameType = Enums.FrameType.Video;
-                DataLength = Content.Length;
+                Frame = new Bitmap(frame);
+                DataLength = 0;
+                Content = null;
             }
 
             public FrameAction(byte[] frame,  int bytesRecorded, double level, DateTime timeStamp)
@@ -939,12 +1143,18 @@ namespace iSpyApplication
                 TimeStamp = timeStamp;
                 FrameType = Enums.FrameType.Audio;
                 DataLength = bytesRecorded;
+                Frame = null;
             }
 
-            public void Nullify()
+            public void Dispose()
             {
                 Content = null;
                 DataLength = 0;
+                if (Frame != null)
+                {
+                    Frame.Dispose();
+                    Frame = null;
+                }
             }
 
         }

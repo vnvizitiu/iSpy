@@ -1335,7 +1335,45 @@ namespace iSpyApplication.Server
                     }
                     else
                         resp = "stopped,Control not found,OK";
-                    
+
+                    break;
+                case "saveobjects":
+                {
+                    MainForm.InstanceReference.SaveObjectList(false);
+                    resp = "OK";
+                }
+                    break;
+                case "reloaddatafile":
+                    {
+                        if (io != null)
+                        {
+                            io.LoadFileList();
+                        }
+                        else
+                        {
+                            foreach (var c in MainForm.InstanceReference.ControlList)
+                            {
+                                c.LoadFileList();
+                            }
+                        }
+                        resp = "OK";
+                    }
+                    break;
+                case "savedatafile":
+                    {
+                        if (io != null)
+                        {
+                            io.SaveFileList();
+                        }
+                        else
+                        {
+                            foreach (var c in MainForm.InstanceReference.ControlList)
+                            {
+                                c.SaveFileList();
+                            }
+                        }
+                        resp = "OK";
+                    }
                     break;
                 case "record":
                     if (otid == 1)
@@ -1804,7 +1842,7 @@ namespace iSpyApplication.Server
 
                     foreach (string fn3 in files)
                     {
-                        if (Helper.ArchiveFile(folderpath + fn3))
+                        if (Helper.ArchiveFile(io, folderpath + fn3)!="NOK")
                             resp = "OK";
                         else
                             break;
@@ -2406,7 +2444,7 @@ namespace iSpyApplication.Server
                     string grabs = "";
                     foreach (objectsCamera oc1 in MainForm.Cameras)
                     {
-                        var dirinfo = new DirectoryInfo(Helper.GetMediaDirectory(2, oid) + "video\\" +
+                        var dirinfo = new DirectoryInfo(Helper.GetMediaDirectory(2, oc1.id) + "video\\" +
                                                         oc1.directory + "\\grabs\\");
 
                         var lFi = new List<FileInfo>();
@@ -2660,7 +2698,7 @@ namespace iSpyApplication.Server
                     break;
                 case "getobjectlist":
                     //for 3rd party APIs
-                    resp = GetObjectList();
+                    resp = GetObjectList(otid,oid);
                     break;
                 case "getservername":
                     resp = MainForm.Conf.ServerName + ",OK";
@@ -2946,6 +2984,7 @@ namespace iSpyApplication.Server
                                     cfg = "ot: 1, oid:" + oid + ", port: " + MainForm.Conf.ServerPort + ", online: " +
                                           ie.ToString().ToLower() + ",recording: " +
                                           fr.ToString().ToLower() + ", width:320, height:40";
+                                    cfg += ", errorState:" + vl.AudioSourceErrorState.ToString().ToLowerInvariant();
                                 }
                                 break;
                             case 2:
@@ -2963,6 +3002,7 @@ namespace iSpyApplication.Server
                                           ",recording: " + fr.ToString().ToLower() + ", width:" + res[0] +
                                           ", height:" + res[1] + ", talk:" +
                                           (cw.Camobject.settings.audiomodel != "None").ToString().ToLower();
+                                    cfg += ", errorState:" + cw.VideoSourceErrorState.ToString().ToLowerInvariant();
                                 }
                                 break;
                         }
@@ -3948,14 +3988,16 @@ namespace iSpyApplication.Server
             return "0 Bytes";
         }
 
-        internal string GetObjectList()
+        internal string GetObjectList(int ot = 0, int oid =0)
         {
             string resp = "";
-            if (MainForm.Cameras != null)
+            if (MainForm.Cameras != null && (ot==0 || ot==2))
             {
                 var l = MainForm.Cameras.OrderBy(p => p.name).ToList();
                 foreach (objectsCamera oc in l)
                 {
+                    if (oid != 0 && oid != oc.id)
+                        continue;
                     CameraWindow cw = MainForm.InstanceReference.GetCameraWindow(oc.id);
                     if (cw != null)
                     {
@@ -3964,23 +4006,26 @@ namespace iSpyApplication.Server
                         resp += "2," + oc.id + "," + onlinestatus.ToString().ToLower() + "," +
                                 oc.name.Replace(",", "&comma;") + "," + GetStatus(onlinestatus) + "," +
                                 oc.description.Replace(",", "&comma;").Replace("\n", " ") + "," +
-                                oc.settings.accessgroups.Replace(",", "&comma;").Replace("\n", " ") + "," + oc.ptz + "," + talkconfigured.ToString().ToLower() +"," + oc.settings.micpair + Environment.NewLine;
+                                oc.settings.accessgroups.Replace(",", "&comma;").Replace("\n", " ") + "," + oc.ptz + "," + talkconfigured.ToString().ToLower() +"," + oc.settings.micpair + ","+cw.Recording.ToString().ToLowerInvariant() + Environment.NewLine;
                     }
                 }
             }
-            if (MainForm.Microphones != null)
+            if (MainForm.Microphones != null && (ot == 0 || ot == 1))
             {
                 var l = MainForm.Microphones.OrderBy(p => p.name).ToList();
                 foreach (objectsMicrophone om in l)
                 {
+                    if (oid != 0 && oid != om.id)
+                        continue;
                     VolumeLevel vl = MainForm.InstanceReference.GetVolumeLevel(om.id);
                     if (vl!=null)
                     {
                         bool onlinestatus = vl.IsEnabled;
+                        bool recording = vl.Recording;
                         resp += "1," + om.id + "," + onlinestatus.ToString().ToLower() + "," +
                             om.name.Replace(",", "&comma;") + "," + GetStatus(onlinestatus) + "," +
                             om.description.Replace(",", "&comma;").Replace("\n", " ") + "," +
-                            om.settings.accessgroups.Replace(",", "&comma;").Replace("\n", " ") + Environment.NewLine;
+                            om.settings.accessgroups.Replace(",", "&comma;").Replace("\n", " ") + ","+recording.ToString().ToLowerInvariant()+ Environment.NewLine;
                     }
                 }
             }

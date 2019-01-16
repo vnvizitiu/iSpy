@@ -103,8 +103,8 @@ namespace iSpyApplication
             this.mediaDirectoryEditor1 = new iSpyApplication.Controls.MediaDirectoryEditor();
             this.flowLayoutPanel8 = new System.Windows.Forms.FlowLayoutPanel();
             this.txtArchive = new System.Windows.Forms.TextBox();
-            this.btnArchive = new System.Windows.Forms.Button();
             this.label12 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
             this.button3 = new System.Windows.Forms.Button();
             this.tabPage13 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel12 = new System.Windows.Forms.TableLayoutPanel();
@@ -236,6 +236,7 @@ namespace iSpyApplication
             this.llblHelp = new System.Windows.Forms.LinkLabel();
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.tmrJSUpdate = new System.Windows.Forms.Timer(this.components);
+            this.btnArchive = new System.Windows.Forms.Button();
             this.tcTabs.SuspendLayout();
             this.tabPage6.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
@@ -1193,9 +1194,9 @@ namespace iSpyApplication
             this.tableLayoutPanel2.Name = "tableLayoutPanel2";
             this.tableLayoutPanel2.RowCount = 3;
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 100F));
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(840, 375);
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(840, 442);
             this.tableLayoutPanel2.TabIndex = 39;
             // 
             // label11
@@ -1223,10 +1224,11 @@ namespace iSpyApplication
             this.flowLayoutPanel8.Controls.Add(this.txtArchive);
             this.flowLayoutPanel8.Controls.Add(this.btnArchive);
             this.flowLayoutPanel8.Controls.Add(this.label12);
+            this.flowLayoutPanel8.Controls.Add(this.label5);
             this.flowLayoutPanel8.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flowLayoutPanel8.Location = new System.Drawing.Point(133, 197);
             this.flowLayoutPanel8.Name = "flowLayoutPanel8";
-            this.flowLayoutPanel8.Size = new System.Drawing.Size(733, 65);
+            this.flowLayoutPanel8.Size = new System.Drawing.Size(733, 94);
             this.flowLayoutPanel8.TabIndex = 41;
             // 
             // txtArchive
@@ -1236,19 +1238,10 @@ namespace iSpyApplication
             this.txtArchive.Size = new System.Drawing.Size(280, 22);
             this.txtArchive.TabIndex = 1;
             // 
-            // btnArchive
-            // 
-            this.btnArchive.Location = new System.Drawing.Point(289, 3);
-            this.btnArchive.Name = "btnArchive";
-            this.btnArchive.Size = new System.Drawing.Size(28, 23);
-            this.btnArchive.TabIndex = 0;
-            this.btnArchive.Text = "...";
-            this.btnArchive.UseVisualStyleBackColor = true;
-            this.btnArchive.Click += new System.EventHandler(this.btnArchive_Click);
-            // 
             // label12
             // 
             this.label12.AutoSize = true;
+            this.flowLayoutPanel8.SetFlowBreak(this.label12, true);
             this.label12.Location = new System.Drawing.Point(6, 35);
             this.label12.Margin = new System.Windows.Forms.Padding(6);
             this.label12.Name = "label12";
@@ -1257,9 +1250,19 @@ namespace iSpyApplication
             this.label12.Text = "Location to archive selected clips to - do not use a location in a media director" +
     "y.";
             // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(6, 64);
+            this.label5.Margin = new System.Windows.Forms.Padding(6);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(176, 17);
+            this.label5.TabIndex = 3;
+            this.label5.Text = "eg: D:\\Archive\\{DIR}\\{0:dd}";
+            // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(133, 268);
+            this.button3.Location = new System.Drawing.Point(133, 297);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(75, 23);
             this.button3.TabIndex = 42;
@@ -2816,6 +2819,16 @@ namespace iSpyApplication
             this.tmrJSUpdate.Enabled = true;
             this.tmrJSUpdate.Tick += new System.EventHandler(this.tmrJSUpdate_Tick);
             // 
+            // btnArchive
+            // 
+            this.btnArchive.Location = new System.Drawing.Point(289, 3);
+            this.btnArchive.Name = "btnArchive";
+            this.btnArchive.Size = new System.Drawing.Size(28, 23);
+            this.btnArchive.TabIndex = 0;
+            this.btnArchive.Text = "...";
+            this.btnArchive.UseVisualStyleBackColor = true;
+            this.btnArchive.Click += new System.EventHandler(this.btnArchive_Click);
+            // 
             // Settings
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
@@ -3068,7 +3081,6 @@ namespace iSpyApplication
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel8;
         private System.Windows.Forms.TextBox txtArchive;
-        private System.Windows.Forms.Button btnArchive;
         private System.Windows.Forms.Label label12;
         private System.Windows.Forms.Label label50;
         private System.Windows.Forms.Label label51;
@@ -3122,5 +3134,7 @@ namespace iSpyApplication
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Button btnArchive;
     }
 }

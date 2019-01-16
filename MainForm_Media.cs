@@ -113,14 +113,15 @@ namespace iSpyApplication
 
         public void MediaArchiveSelected()
         {
-            if (String.IsNullOrWhiteSpace(Conf.Archive))
+            if (String.IsNullOrWhiteSpace(Conf.ArchiveNew))
             {
                 MessageBox.Show(this, LocRm.GetString("SpecifyArchiveLocation"));
                 ShowSettings(2);
             }
-            if (!String.IsNullOrWhiteSpace(Conf.Archive))
+            if (!String.IsNullOrWhiteSpace(Conf.ArchiveNew))
             {
                 int j = 0;
+                string msg = "";
                 lock (ThreadLock)
                 {
                     for (int i = 0; i < flowPreview.Controls.Count; i++)
@@ -128,13 +129,13 @@ namespace iSpyApplication
                         var pb = flowPreview.Controls[i] as PreviewBox;
                         if (pb != null && pb.Selected)
                         {
-                            Helper.ArchiveFile(pb.FileName);
+                            msg=Helper.ArchiveFile(pb.Control, pb.FileName);
                             j++;
                         }
                     }
                 }
-                if (j > 0)
-                    MessageBox.Show(this, LocRm.GetString("MediaArchivedTo") +Environment.NewLine+ Conf.Archive);
+                if (j > 0 && msg!="NOK")
+                    MessageBox.Show(this, LocRm.GetString("MediaArchivedTo") +Environment.NewLine+ msg);
             }
 
         }

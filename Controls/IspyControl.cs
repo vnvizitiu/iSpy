@@ -20,7 +20,7 @@ namespace iSpyApplication.Controls
         bool CanGrab { get; }
         bool HasFiles { get; }
         string ObjectName { get; }
-
+        string Folder { get; }
         void Disable(bool stopSource=true);
         void Enable();
         string RecordSwitch(bool record);
@@ -36,6 +36,8 @@ namespace iSpyApplication.Controls
         int Order { get; set; }
 
         bool Highlighted { get; set; }
+        void LoadFileList();
+        void SaveFileList();
 
         Color BorderColor { get; }
 

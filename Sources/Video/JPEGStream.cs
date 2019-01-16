@@ -8,7 +8,7 @@ using iSpyApplication.Utilities;
 
 namespace iSpyApplication.Sources.Video
 {
-    public class JpegStream : VideoBase, IVideoSource
+    internal class JpegStream : VideoBase, IVideoSource
     {
         // buffer size used to download JPEG image
         private const int BufferSize = 1024*1024;
@@ -209,97 +209,88 @@ namespace iSpyApplication.Sources.Video
             // download start time and duration
             var err = 0;
             var connectionFactory = new ConnectionFactory();
-            while (!_abort.WaitOne(0) && !MainForm.ShuttingDown)
+            while (!_abort.WaitOne(10) && !MainForm.ShuttingDown)
             {
                 var total = 0;
-
-                try
+                if (ShouldEmitFrame)
                 {
-                    // set download start time
-                    var start = DateTime.UtcNow;
-                    var vss = Tokenise(_source.settings.videosourcestring);
-                    var url = vss + (vss.IndexOf('?') == -1 ? '?' : '&') + "fake=" + rand.Next();
-
-                    response = connectionFactory.GetResponse(url, _cookies, _headers, _httpUserAgent, _login, _password,
-                        "GET", "", "", _useHttp10, out request);
-
-                    // get response stream
-                    if (response == null)
-                        throw new Exception("Connection failed");
-
-                    stream = response.GetResponseStream();
-                    stream.ReadTimeout = _requestTimeout;
-
-
-                    bool frameComplete=false;
-                    // loop
-                    while (!_abort.WaitOne(0))
+                    try
                     {
-                        // check total read
-                        if (total > BufferSize - ReadSize)
+                        // set download start time
+                        var start = DateTime.UtcNow;
+                        var vss = Tokenise(_source.settings.videosourcestring);
+                        var url = vss + (vss.IndexOf('?') == -1 ? '?' : '&') + "fake=" + rand.Next();
+
+                        response = connectionFactory.GetResponse(url, _cookies, _headers, _httpUserAgent, _login,
+                            _password,
+                            "GET", "", "", _useHttp10, out request);
+
+                        // get response stream
+                        if (response == null)
+                            throw new Exception("Connection failed");
+
+                        stream = response.GetResponseStream();
+                        stream.ReadTimeout = _requestTimeout;
+
+
+                        bool frameComplete = false;
+                        // loop
+                        while (!_abort.WaitOne(0))
                         {
-                            total = 0;
+                            // check total read
+                            if (total > BufferSize - ReadSize)
+                            {
+                                total = 0;
+                            }
+
+                            // read next portion from stream
+                            int read;
+                            if ((read = stream.Read(buffer, total, ReadSize)) == 0)
+                            {
+                                frameComplete = true;
+                                break;
+                            }
+
+                            total += read;
                         }
 
-                        // read next portion from stream
-                        int read;
-                        if ((read = stream.Read(buffer, total, ReadSize)) == 0)
+                        // provide new image to clients
+                        if (frameComplete && NewFrame != null)
                         {
-                            frameComplete = true;
+                            using (var ms = new MemoryStream(buffer, 0, total))
+                            {
+                                using (var bitmap = (Bitmap) Image.FromStream(ms))
+                                {
+                                    NewFrame(this, new NewFrameEventArgs(bitmap));
+                                }
+                            }
+                        }
+
+                        err = 0;
+                    }
+                    catch (ThreadAbortException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex, "JPEG");
+                        err++;
+                        if (err > 3)
+                        {
+                            _res = ReasonToFinishPlaying.DeviceLost;
                             break;
                         }
 
-                        total += read;
+                        _abort.WaitOne(250);
                     }
-
-                    // provide new image to clients
-                    if (frameComplete && NewFrame != null && EmitFrame)
+                    finally
                     {
-                        using (var ms = new MemoryStream(buffer, 0, total))
-                        {
-                            using (var bitmap = (Bitmap) Image.FromStream(ms))
-                            {
-                                NewFrame(this, new NewFrameEventArgs(bitmap));
-                            }
-                        }
+                        request?.Abort();
+                        stream?.Flush();
+                        stream?.Close();
+                        response?.Close();
                     }
-
-
-                    // wait for a while ?
-                    if (FrameInterval > 0)
-                    {
-                        // get download duration
-                        var span = DateTime.UtcNow.Subtract(start);
-                        // milliseconds to sleep
-                        var msec = FrameInterval - (int) span.TotalMilliseconds;
-                        if (msec > 0)
-                        {
-                            _abort.WaitOne(msec);
-                        }
-                    }
-                    err = 0;
-                }
-                catch (ThreadAbortException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogException(ex, "JPEG");
-                    err++;
-                    if (err > 3)
-                    {
-                        _res = ReasonToFinishPlaying.DeviceLost;
-                        break;
-                    }
-                    _abort.WaitOne(250);
-                }
-                finally
-                {
-                    request?.Abort();
-                    stream?.Flush();
-                    stream?.Close();
-                    response?.Close();
                 }
             }
 

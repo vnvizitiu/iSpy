@@ -24,7 +24,7 @@ namespace iSpyApplication.Sources.Video
     /// Camera - Plugin
     /// Camera - RunPlugin
     /// </remarks>
-    public class KinectNetworkStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
+    internal class KinectNetworkStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
     {
         private readonly objectsCamera _source;
         private string _login;
@@ -448,7 +448,7 @@ namespace iSpyApplication.Sources.Video
                                     case "image/jpeg":
                                         try
                                         {
-                                            if (EmitFrame)
+                                            if (ShouldEmitFrame)
                                             {
                                                 using (var ms = new MemoryStream(buffer, br + 4, endPacket - br - 8))
                                                 {

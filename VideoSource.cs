@@ -75,7 +75,7 @@ namespace iSpyApplication
         /// the dialog using "OK" button. If user canceled the dialog, the property is
         /// set to <see langword="null"/>.</para></remarks>
         /// 
-        public VideoCaptureDevice VideoDevice => _videoCaptureDevice;
+        internal VideoCaptureDevice VideoDevice => _videoCaptureDevice;
 
         private string _videoDeviceMoniker = string.Empty;
         private Size _captureSize = new Size(0, 0);
@@ -204,7 +204,7 @@ namespace iSpyApplication
             }
             
             txtVLCArgs.Text = CameraControl.Camobject.settings.vlcargs.Replace("\r\n","\n").Replace("\n\n","\n").Replace("\n", Environment.NewLine);
-
+            chkUseGPU.Checked = CameraControl.Camobject.settings.useGPU;
             foreach (var cam in MainForm.Cameras)
             {
                 if (cam.id != CameraControl.Camobject.id && cam.settings.sourceindex!=10) //dont allow a clone of a clone as the events get too complicated (and also it's pointless)
@@ -253,6 +253,7 @@ namespace iSpyApplication
                     }
                     break;
             }
+            onvifWizard1.CameraControl = CameraControl;
 
             if (!string.IsNullOrEmpty(CameraControl.Camobject.decodekey))
                 txtDecodeKey.Text = CameraControl.Camobject.decodekey;
@@ -265,7 +266,6 @@ namespace iSpyApplication
             cmbFile.Items.AddRange(ObjectList(MainForm.Conf.RecentFileList));
             cmbVLCURL.Items.AddRange(ObjectList(MainForm.Conf.RecentVLCList));
 
-            numAnalyseDuration.Value = CameraControl.Camobject.settings.analyseduration;
            
             int selectedCameraIndex = 0;
 
@@ -589,8 +589,7 @@ namespace iSpyApplication
 
             SourceIndex = GetSourceIndex();
 
-            CameraLogin = txtLogin.Text;
-            CameraPassword = txtPassword.Text;
+            CameraLogin = CameraPassword = "";
 
 
             FriendlyName = "Camera " + MainForm.Cameras.Count;
@@ -604,6 +603,8 @@ namespace iSpyApplication
                         MessageBox.Show(LocRm.GetString("Validate_SelectCamera"), LocRm.GetString("Note"));
                         return;
                     }
+                    CameraLogin = txtLogin.Text;
+                    CameraPassword = txtPassword.Text;
                     VideoSourceString = url;
                     SetPTZPort();
                     break;
@@ -628,7 +629,6 @@ namespace iSpyApplication
                         return;
                     }
                     VideoSourceString = url;
-                    CameraControl.Camobject.settings.analyseduration = (int)numAnalyseDuration.Value;
                     //analyse cannot be greater than timeout
                     if (CameraControl.Camobject.settings.analyseduration > CameraControl.Camobject.settings.timeout - 500)
                         CameraControl.Camobject.settings.timeout = CameraControl.Camobject.settings.analyseduration + 500;
@@ -785,37 +785,19 @@ namespace iSpyApplication
                         return;
                     }
 
-                    url = cfg.URI.Uri;
+                    url = cfg.Uri.Uri;
 
                     CameraLogin = onvifWizard1.txtOnvifUsername.Text;
                     CameraPassword = onvifWizard1.txtOnvifPassword.Text;
-
-                    VideoSourceString = url.Replace("://","://"+CameraLogin+":"+CameraPassword+"@");
-                    CameraControl.Camobject.settings.analyseduration = (int)numAnalyseDuration.Value;
-                    CameraControl.Camobject.settings.onvifident = onvifWizard1.ddlDeviceURL.Text + "|" + onvifWizard1.lbOnvifURLs.SelectedIndex;
+                    VideoSourceString = CameraControl.Camobject.settings.onvifident = onvifWizard1.ddlDeviceURL.Text;
+                    nv = "profilename=" + onvifWizard1.lbOnvifURLs.SelectedIndex.ToString() + ",use=" + (onvifWizard1.ddlConnectWith.SelectedIndex == 0 ? "FFMPEG" : "VLC");
+                    
                     CameraControl.Camobject.ptz = -5;//onvif
                     CameraControl.Camobject.settings.rtspmode = onvifWizard1.ddlTransport.SelectedIndex;
-                    
-                    SetVideoSize(new Size(cfg.Config.Bounds.width, cfg.Config.Bounds.height));
+                    CameraControl.Camobject.settings.onvif.rtspport = (int)onvifWizard1.numRTSP.Value;
+                    SetVideoSize(new Size(cfg.Width, cfg.Height));
 
-                    if (onvifWizard1.ddlConnectWith.SelectedIndex==1)
-                    {
-                        SourceIndex = 5;
-                        CameraControl.Camobject.settings.vlcargs = txtVLCArgs.Text.Trim();
-                    }
-                    else
-                        SourceIndex = 2;
-
-                    //add to find camera so can prompt to save it
-                    //var u = new Uri(url);
-                    //FindCameras.LastConfig.Prefix = u.Scheme + "://";
-                    //FindCameras.LastConfig.Source = "FFMPEG";
-                    //FindCameras.LastConfig.URL = u.AbsolutePath;
-                    //FindCameras.LastConfig.Cookies = "";
-                    //FindCameras.LastConfig.Flags = "";
-                    //FindCameras.LastConfig.Port = u.Port;
-                    //FindCameras.LastConfig.Ipmodel = "";
-                    //FindCameras.LastConfig.PromptSave = true;
+                    CameraControl.Camobject.settings.vlcargs = txtVLCArgs.Text.Trim();
                     break;
                 case 10:
                     if (ddlCloneCamera.SelectedIndex>-1)
@@ -1272,20 +1254,23 @@ namespace iSpyApplication
             {
                 if (fc.ShowDialog(this) != DialogResult.OK) return;
                 SetSourceIndex(fc.VideoSourceType);
+                
+                
+                CameraControl.Camobject.settings.login = txtLogin.Text = txtLogin2.Text = onvifWizard1.txtOnvifUsername.Text = fc.Username;
+                CameraControl.Camobject.settings.password = txtPassword.Text = txtPassword2.Text = onvifWizard1.txtOnvifPassword.Text = fc.Password;
+                CameraControl.Camobject.settings.cookies = fc.Cookies;
+
+                CameraControl.Camobject.settings.tokenconfig.tokenpath = fc.tokenPath;
+                CameraControl.Camobject.settings.tokenconfig.tokenpost = fc.tokenPost;
+                CameraControl.Camobject.settings.tokenconfig.tokenport = fc.tokenPort;
 
                 switch (fc.VideoSourceType)
                 {
                     case 0:
                         cmbJPEGURL.Text = fc.FinalUrl;
-                        txtLogin.Text = fc.Username;
-                        txtPassword.Text = fc.Password;
-                        CameraControl.Camobject.settings.cookies = fc.Cookies;
                         break;
                     case 1:
-                        cmbMJPEGURL.Text = fc.FinalUrl;
-                        txtLogin2.Text = fc.Username;
-                        txtPassword2.Text = fc.Password;
-                        CameraControl.Camobject.settings.cookies = fc.Cookies;
+                        cmbMJPEGURL.Text = fc.FinalUrl;                                                
                         break;
                     case 2:
                         cmbFile.Text = fc.FinalUrl;
@@ -1293,6 +1278,10 @@ namespace iSpyApplication
                     case 5:
                         cmbVLCURL.Text = fc.FinalUrl;
                         break;
+                    case 9:
+                        onvifWizard1.ddlDeviceURL.Text = fc.FinalUrl;
+                        onvifWizard1.GoStep1();
+                        return;
                 }
 
                 if (!string.IsNullOrEmpty(fc.Flags))
@@ -1317,14 +1306,7 @@ namespace iSpyApplication
 
                     CameraControl.Camobject.settings.ptzusername = fc.Username;
                     CameraControl.Camobject.settings.ptzpassword = fc.Password;
-                    CameraControl.Camobject.settings.ptzurlbase = MainForm.PTZs.Single(p => p.id == fc.Ptzid).CommandURL;
                 }
-                
-
-                CameraControl.Camobject.settings.tokenconfig.tokenpath = fc.tokenPath;
-                CameraControl.Camobject.settings.tokenconfig.tokenpost = fc.tokenPost;
-                CameraControl.Camobject.settings.tokenconfig.tokenport = fc.tokenPort;
-               
 
                 if (!string.IsNullOrEmpty(fc.AudioModel))
                 {
@@ -1651,6 +1633,7 @@ namespace iSpyApplication
                     source = source.Substring(0, i).ToLower() + source.Substring(i);
                 }
                 CameraControl.Camobject.settings.videosourcestring = source;
+                CameraControl.Camobject.settings.rtspmode = ddlRTSP.SelectedIndex;
 
                 vfr = new MediaStream(CameraControl);
                 vfr.NewFrame += Vfr_NewFrame;
@@ -1675,17 +1658,41 @@ namespace iSpyApplication
 
         private void Vfr_ErrorHandler(string message)
         {
+            vfr.ErrorHandler -= Vfr_ErrorHandler;
             UISync.Execute(() => {
-                                     MessageBox.Show(this, "Connection Failed");
+                               MessageBox.Show(this, message);
+                               btnTest.Enabled = true;
             });
-            vfr.Close();
         }
 
         private void Vfr_NewFrame(object sender, Sources.NewFrameEventArgs e)
         {
-            UISync.Execute(() => {
-                                     MessageBox.Show(this, "Connected!"); });
+            vfr.NewFrame -= Vfr_NewFrame;
+            if (e.Frame == null)
+            {
+                UISync.Execute(() => {MessageBox.Show(this, "Connection Failed");});
+            }
+            else
+            {
+                UISync.Execute(() => { MessageBox.Show(this, "Connected!"); });
+            }
+
             vfr.Close();
+        }
+
+        private void numAnalyseDuration_ValueChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void chkUseGPU_CheckedChanged(object sender, EventArgs e)
+        {
+            CameraControl.Camobject.settings.useGPU = chkUseGPU.Checked;
+        }
+
+        private void onvifWizard1_Load(object sender, EventArgs e)
+        {
+
         }
     }
     

@@ -13,6 +13,7 @@ using iSpyApplication.Cloud;
 using iSpyApplication.Controls;
 using iSpyApplication.Kinect;
 using iSpyApplication.Pelco;
+using iSpyApplication.Realtime;
 using iSpyApplication.Sources;
 using iSpyApplication.Sources.Audio;
 using iSpyApplication.Sources.Video;
@@ -363,10 +364,7 @@ namespace iSpyApplication
             
 
             txtAccessGroups.Text = CameraControl.Camobject.settings.accessgroups;
-            
-
-            
-
+            chkResize.Checked = CameraControl.Camobject.settings.resize;
 
             ddlCopyFrom.Items.Clear();
             ddlCopyFrom.Items.Add(new ListItem(LocRm.GetString("CopyFrom"), "-1"));
@@ -465,6 +463,12 @@ namespace iSpyApplication
             chkFTPRecordingsEnabled.Checked = CameraControl.Camobject.recorder.ftpenabled;
             txtFTPRecordingFilename.Text = CameraControl.Camobject.recorder.ftpfilename;
             numFTPRecordingCounterMax.Value = CameraControl.Camobject.recorder.ftpcountermax;
+
+            comboBox1.Items.Add("software");
+            foreach (var gpu in MediaWriter.Encoders)
+                comboBox1.Items.Add(gpu.Name);
+            comboBox1.SelectedItem = CameraControl.Camobject.settings.encoder;
+
             _loaded = true;
         }
 
@@ -696,6 +700,7 @@ namespace iSpyApplication
             llblHelp.Text = LocRm.GetString("help");
             
             chkColourProcessing.Text = LocRm.GetString("Apply");
+            chkResize.Text = LocRm.GetString("json.resize");
             Text = LocRm.GetString("AddCamera");
             
             lblAccessGroups.Text = LocRm.GetString("AccessGroups");
@@ -823,8 +828,6 @@ namespace iSpyApplication
                     if (CameraControl.Camobject.ptz == e.Id && CameraControl.Camobject.ptzentryindex==e.Index)
                     {
                         ddlPTZ.SelectedIndex = ddlPTZ.Items.Count-1;
-                        if (CameraControl.Camobject.settings.ptzurlbase == "")
-                            CameraControl.Camobject.settings.ptzurlbase = MainForm.PTZs.Single(p=>p.id==e.Id).CommandURL;
                     }
                 }
                 if (ddlPTZ.SelectedIndex == -1)
@@ -1195,7 +1198,7 @@ namespace iSpyApplication
 
             CameraControl.Camobject.settings.youtube.@public = chkPublic.Checked;
             CameraControl.Camobject.settings.youtube.tags = txtTags.Text;
-            CameraControl.Camobject.settings.maxframeraterecord = (int)numMaxFRRecording.Value;
+            CameraControl.Camobject.settings.maxframeraterecord = numMaxFRRecording.Value;
 
             CameraControl.Camobject.settings.accessgroups = txtAccessGroups.Text;
             CameraControl.Camobject.detector.recordonalert = rdoRecordAlert.Checked;
@@ -1273,6 +1276,7 @@ namespace iSpyApplication
             CameraControl.Camobject.settings.cloudprovider.recordings = chkUploadRecordings.Checked;
             CameraControl.Camobject.settings.cloudprovider.path = txtCloudPath.Text;
             CameraControl.Camobject.settings.messaging = chkMessaging.Checked;
+            CameraControl.Camobject.settings.encoder = comboBox1.SelectedItem.ToString();
 
             MainForm.NeedsSync = true;
             IsNew = false;
@@ -1515,7 +1519,6 @@ namespace iSpyApplication
                 }
                 if (_loaded)
                 {
-                    CameraControl.Camobject.settings.ptzurlbase = ptz.CommandURL;
                     if (ptz.portSpecified)
                         CameraControl.Camobject.settings.ptzport = ptz.port;
                 }
@@ -1572,12 +1575,7 @@ namespace iSpyApplication
 
         private void PnlPtzMouseUp(object sender, MouseEventArgs e)
         {
-            PTZSettings2Camera ptz = MainForm.PTZs.SingleOrDefault(p => p.id == CameraControl.Camobject.ptz);
-            if ((ptz != null && ptz.Commands.Stop!=""))
-                SendPtzCommand(ptz.Commands.Stop);
-
-            if (CameraControl.PTZ.IsContinuous)
-                CameraControl.PTZ.SendPTZCommand(Enums.PtzCommand.Stop);
+            CameraControl.PTZ.CheckSendStop();            
         }
 
         private void SendPtzCommand(string cmd)
@@ -1614,6 +1612,7 @@ namespace iSpyApplication
 
         private void LinkLabel6LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
+
             var d = new downloader
             {
                 Url = MainForm.ContentSource + "/getcontent.aspx?name=PTZ2",
@@ -1859,7 +1858,7 @@ namespace iSpyApplication
 
         private void numMaxFR_ValueChanged(object sender, EventArgs e)
         {
-            CameraControl.Camobject.settings.maxframerate = (int)numMaxFR.Value;
+            CameraControl.Camobject.settings.maxframerate = numMaxFR.Value;
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -2154,7 +2153,7 @@ namespace iSpyApplication
 
         private void PopulateTalkDevices()
         {
-            var models = new [] {"None", "Local Playback","Axis", "Foscam", "iSpyServer", "NetworkKinect", "IP Webcam (Android)"};
+            var models = new [] {"None", "Local Playback","Axis", "Foscam", "iSpyServer", "NetworkKinect", "IP Webcam (Android)", "Amcrest" };
             foreach(string m in models)
             {
                 ddlTalkModel.Items.Add(m);
@@ -2224,7 +2223,7 @@ namespace iSpyApplication
                     {
                         try
                         {
-                            CameraControl.PTZ.AddPreset(s);
+                            CameraControl.PTZ.AddPreset(s,null);
                         }
                         catch (Exception ex)
                         {
@@ -2551,7 +2550,7 @@ namespace iSpyApplication
                     if (b && provider!="youtube")
                         CameraControl.Camobject.settings.cloudprovider.provider = ddlCloudProviders.SelectedItem.ToString().ToLower();
 
-                    MessageBox.Show(this, b ? LocRm.GetString("OK") : LocRm.GetString("Failed"));
+                    MessageBox.Show(this, b ? LocRm.GetString("OK") : LocRm.GetString("Failed")+": Please ensure your login details are correct and you don't have two factor authentication switched on for your cloud provider.");
                 }
             }
         }
@@ -2589,6 +2588,16 @@ namespace iSpyApplication
         private void rdoTrigger_CheckedChanged(object sender, EventArgs e)
         {
             CameraControl.Camobject.alerts.processmode = "trigger";
+        }
+        
+
+        private void chkResize_CheckedChanged(object sender, EventArgs e)
+        {
+            CameraControl.Camobject.settings.resize = chkResize.Checked;
+            if (chkActive.Checked)
+            {
+                CameraControl.Restart();
+            }
         }
     }
 }

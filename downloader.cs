@@ -21,7 +21,6 @@ namespace iSpyApplication
         public downloader()
         {
             InitializeComponent();
-
         }
 
         private void downloader_Load(object sender, EventArgs e)
@@ -77,7 +76,7 @@ namespace iSpyApplication
                             var ms = new MemoryStream(byteBuffer);
                             var doc = new XmlDocument();
                             try
-                            {
+                            {                               
                                 doc.Load(ms);
                                 doc.Save(SaveLocation);
                                 success = true;

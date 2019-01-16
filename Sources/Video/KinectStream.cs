@@ -17,7 +17,7 @@ using NAudio.Wave.SampleProviders;
 
 namespace iSpyApplication.Sources.Video
 {
-    public class KinectStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
+    internal class KinectStream : VideoBase, IVideoSource, IAudioSource, ISupportsAudio
     {
         private readonly Pen _inferredBonePen = new Pen(Brushes.Gray, 1);
         private readonly Pen _trackedBonePen = new Pen(Brushes.Green, 2);
@@ -320,7 +320,7 @@ namespace iSpyApplication.Sources.Video
             {
                 if (depthFrame != null)
                 {
-                    if (EmitFrame)
+                    if (ShouldEmitFrame)
                     {
                         // Copy the pixel data from the image to a temporary array
                         depthFrame.CopyPixelDataTo(_depthPixels);
@@ -411,7 +411,7 @@ namespace iSpyApplication.Sources.Video
 
         void SensorColorFrameReady(object sender, ColorImageFrameReadyEventArgs e)
         {
-            if (EmitFrame)
+            if (ShouldEmitFrame)
             {
                 using (ColorImageFrame imageFrame = e.OpenColorImageFrame())
                 {

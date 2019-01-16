@@ -43,7 +43,7 @@ namespace iSpyApplication.Controls
         private DateTime _recordingStartTime = DateTime.MinValue;
         private Point _mouseLoc;
         private readonly ManualResetEvent _stopWrite = new ManualResetEvent(false);
-        private readonly ManualResetEvent _writerStopped = new ManualResetEvent(false);
+        private readonly ManualResetEvent _writerStopped = new ManualResetEvent(true);
         private volatile float[] _levels;
         private readonly ToolTip _toolTipMic;
         private int _ttind = -1;
@@ -167,7 +167,7 @@ namespace iSpyApplication.Controls
         public List<HttpRequest> OutSockets = new List<HttpRequest>();
 
         private Thread _tFiles;
-        public void GetFiles()
+        public void LoadFileList()
         {
             try
             {
@@ -424,7 +424,7 @@ namespace iSpyApplication.Controls
             {
                 try
                 {
-                    return _recordingThread != null && !_recordingThread.Join(TimeSpan.Zero);
+                    return _recordingThread != null;
                 }
                 catch
                 {
@@ -435,7 +435,7 @@ namespace iSpyApplication.Controls
 
         }
 
-
+        public string Folder => Micobject.directory;
         public string ObjectName => Micobject.name;
 
         public bool CanTalk => false;
@@ -654,6 +654,18 @@ namespace iSpyApplication.Controls
                     break;
                 case 22:
                     Micobject.settings.messaging = false;
+                    break;
+                case 25:
+                    if (IsEnabled)
+                    {
+                        Listening = true;
+                    }
+                    break;
+                case 26:
+                    if (IsEnabled)
+                    {
+                        Listening = false;
+                    }
                     break;
             }
         }
@@ -1519,12 +1531,6 @@ namespace iSpyApplication.Controls
             if (Recording)
             {
                 _stopWrite.Set();
-                _writerStopped.WaitOne();
-
-                var cc = CameraControl;
-                if (cc!=null)
-                    cc.AbortedAudio = true;
-                
             }
         }
 
@@ -1566,7 +1572,6 @@ namespace iSpyApplication.Controls
             string linktofile = "";
             try
             {
-                _stopWrite.Reset();
                 _writerStopped.Reset();
                 if (!string.IsNullOrEmpty(Micobject.recorder.trigger))
                 {
@@ -1586,17 +1591,6 @@ namespace iSpyApplication.Controls
                     }
                 }
                 var cw = CameraControl;
-                //
-                if (cw != null)
-                {
-                    if (cw.AbortedAudio)
-                    {
-                        Logger.LogError(Micobject.name +
-                                                ": paired recording aborted as the camera is already recording");
-                        ForcedRecording = false;
-                        return;
-                    }
-                }
                 try
                 {
                     if (cw != null)
@@ -1620,9 +1614,14 @@ namespace iSpyApplication.Controls
                             Directory.CreateDirectory(folder);
                         filename = folder + AudioFileName;
 
-
-
-                        _writer = new MediaWriter(filename + ".mp3", AVCodecID.AV_CODEC_ID_MP3);
+                        Helper.FrameAction fa;
+                        DateTime recordingStart = DateTime.UtcNow;
+                        if (Buffer.TryPeek(out fa))
+                        {
+                            recordingStart = fa.TimeStamp;
+                        }
+                        _writer = new MediaWriter();
+                        _writer.Open(filename + ".mp3", -1,-1,AVCodecID.AV_CODEC_ID_NONE,0, AVCodecID.AV_CODEC_ID_MP3, recordingStart,20);
 
                         try
                         {
@@ -1639,26 +1638,19 @@ namespace iSpyApplication.Controls
 
 
                         double maxlevel = 0;
-                        DateTime recordingStart = DateTime.MinValue;
 
                         try
                         {
-                            while (!_stopWrite.WaitOne(0))
+                            while (!_stopWrite.WaitOne(50))
                             {
-                                Helper.FrameAction fa;
+                                
                                 if (Buffer.TryDequeue(out fa))
                                 {
                                     try
                                     {
-                                        if (recordingStart == DateTime.MinValue)
-                                        {
-                                            recordingStart = fa.TimeStamp;
-                                        }
-
                                         if (fa.FrameType == Enums.FrameType.Audio)
                                         {
-                                            var pts = (long) (fa.TimeStamp - recordingStart).TotalMilliseconds;
-                                            _writer.WriteAudio(fa.Content, fa.DataLength, 0, pts);
+                                            _writer.WriteAudio(fa.Content, fa.DataLength, 0, fa.TimeStamp);
                                             float d = (float) fa.Level;
                                             _soundData.Append(string.Format(CultureInfo.InvariantCulture,
                                                 "{0:0.000}", d));
@@ -1669,7 +1661,7 @@ namespace iSpyApplication.Controls
                                     }
                                     finally
                                     {
-                                        fa.Nullify();
+                                        fa.Dispose();
                                     }
                                 }
                                 else
@@ -1776,13 +1768,17 @@ namespace iSpyApplication.Controls
                 Logger.LogException(ex);
             }
 
+            _recordingThread = null;
             _writerStopped.Set();
+            _stopWrite.Reset();
         }
 
-       
 
+        private bool _disposed;
         protected override void Dispose(bool disposing)
         {
+            if (_disposed)
+                return;
             if (disposing)
             {
                 Invalidate();              
@@ -1795,11 +1791,14 @@ namespace iSpyApplication.Controls
             }
             _toolTipMic.RemoveAll();
             _toolTipMic.Dispose();
+            if (_stopWrite.WaitOne(0))
+                _writerStopped.WaitOne(2000);
             _writerStopped.Close();
             _stopWrite.Close();
             _vline.Dispose();
             ClearBuffer();
             base.Dispose(disposing);
+            _disposed = true;
         }
 
         public void ClearBuffer()
@@ -1809,7 +1808,7 @@ namespace iSpyApplication.Controls
                 Helper.FrameAction fa;
                 while (Buffer.TryDequeue(out fa))
                 {
-                    fa.Nullify();
+                    fa.Dispose();
                 }
                 Buffer = new ConcurrentQueue<Helper.FrameAction>();
             }
@@ -2082,7 +2081,7 @@ namespace iSpyApplication.Controls
                     {
                         l[i] = 0.0f;
                     }
-                    AudioDeviceLevelChanged(this, new LevelChangedEventArgs(l));
+                    Levels = l;
 
                     if (!AudioSource.IsRunning && !IsClone && !IsSourceCamera)
                     {
@@ -2167,15 +2166,17 @@ namespace iSpyApplication.Controls
         public void AudioDeviceLevelChanged(object sender, LevelChangedEventArgs eventArgs)
         {
             var f = eventArgs.MaxSamples.Max();
-
             if (Math.Abs(f) < float.Epsilon)
+            {
                 return;
+            }
+
             Levels = eventArgs.MaxSamples;
-            
+
             f = f*100;
             f = f*Micobject.detector.gain;
 
-            if (f >= Micobject.detector.minsensitivity  && f<= Micobject.detector.maxsensitivity)
+            if (f >= Micobject.detector.minsensitivity  && f <= Micobject.detector.maxsensitivity)
             {
                 TriggerDetect(sender);
             }
@@ -2197,19 +2198,28 @@ namespace iSpyApplication.Controls
             if (Levels == null)
                 return;
 
-            byte[] bResampled = new byte[22050];
-            
+            byte[] bResampled = new byte[44100];
+
             try
             {
-                int totBytes;
-                using (var ws = new TalkHelperStream(e.RawData, e.BytesRecorded, AudioSource.RecordingFormat))
+                int totBytes = e.BytesRecorded;
+                var ba = e.RawData;
+                var br = e.BytesRecorded;
+                if (!(sender is MediaStream)) //mediastream is already resampling
                 {
-                    using (var helpStm = new WaveFormatConversionStream(AudioStreamFormat, ws))
+                    using (var ws = new TalkHelperStream(ba, br, AudioSource.RecordingFormat))
                     {
-                        totBytes = helpStm.Read(bResampled, 0, 22050);
+                        using (var helpStm = new WaveFormatConversionStream(AudioStreamFormat, ws))
+                        {
+                            totBytes = helpStm.Read(bResampled, 0, 44100);
+                        }
                     }
                 }
-
+                else
+                {
+                    bResampled = e.RawData;
+                    totBytes = e.BytesRecorded;
+                }
                 lock (_lockobject)
                 {                   
                     Helper.FrameAction fa;
@@ -2223,7 +2233,7 @@ namespace iSpyApplication.Controls
                                 if (fa.TimeStamp < dt)
                                 {
                                     if (Buffer.TryDequeue(out fa))
-                                        fa.Nullify();
+                                        fa.Dispose();
                                 }
                                 else
                                 {
@@ -2254,7 +2264,7 @@ namespace iSpyApplication.Controls
                         _mp3Writer = new LameMP3FileWriter(_outStream, wf, LAMEPreset.STANDARD);
                     }
 
-                    _mp3Writer.Write(bResampled, 0, totBytes);
+                    _mp3Writer.Write(e.RawData, 0, e.BytesRecorded);
 
                     var bterm = Encoding.ASCII.GetBytes("\r\n");
 

@@ -11,16 +11,25 @@ namespace iSpyApplication
 {
     public class AsynchronousFtpUpLoader
     {
-        public bool FTP(string server, int port, bool passive, string username, string password, string filename, int counter, byte[] contents, out string error, bool rename, bool useSftp)
+        public bool FTP(string server, int port, bool passive, string username, string password, string filename, int counter, string path, out string error, bool rename, bool useSftp, byte[] contents)
         {
             bool failed = false;
+            if (contents == null)
+            {
+                var fi = new FileInfo(path);
+                contents = Helper.ReadBytesWithRetry(fi);
+            }
+
             if (useSftp)
             {
                 return Sftp(server, port, username, password, filename, counter, contents, out error, rename);
             }
             try
             {
-                var target = new Uri(server + ":" + port);
+                var urib = new UriBuilder(server);
+                urib.Port = port;
+
+                var target = urib.ToString();
                 int i = 0;
                 filename = filename.Replace("{C}", counter.ToString(CultureInfo.InvariantCulture));
                 if (rename)
@@ -35,12 +44,12 @@ namespace iSpyApplication
                 //try uploading
                 //directory tree
                 var filepath = filename.Trim('/').Split('/');
-                var path = "";
+                var rpath = "";
                 FtpWebRequest request;
                 for (var iDir = 0; iDir < filepath.Length - 1; iDir++)
                 {
-                    path += filepath[iDir] + "/";
-                    request = (FtpWebRequest)WebRequest.Create(target + path);
+                    rpath += filepath[iDir] + "/";
+                    request = (FtpWebRequest)WebRequest.Create(target + rpath);
                     request.Credentials = new NetworkCredential(username, password);
                     request.Method = WebRequestMethods.Ftp.MakeDirectory;
                     try { request.GetResponse(); }
@@ -220,7 +229,7 @@ namespace iSpyApplication
                 i++;
             }
             string error;
-            FTP(task.Server, task.Port, task.UsePassive, task.Username, task.Password, task.FileName, task.Counter, task.Contents, out error, task.Rename, task.UseSftp);
+            FTP(task.Server, task.Port, task.UsePassive, task.Username, task.Password, task.FileName, task.Counter, task.Path, out error, task.Rename, task.UseSftp, task.Content);
 
             if (error != "")
             {
@@ -239,7 +248,7 @@ namespace iSpyApplication
     public struct FTPTask
     {
         public int CameraId;
-        public byte[] Contents;
+        public string Path;
         public string FileName;
         public bool IsError;
         public string Password;
@@ -250,9 +259,10 @@ namespace iSpyApplication
         public bool Rename;
         public bool UseSftp;
         public int Port;
+        public byte[] Content;
 
         public FTPTask(string server, int port, bool usePassive, string username, string password, string fileName,
-                       byte[] contents, int cameraId, int counter, bool rename, bool useSftp)
+                       string path, int cameraId, int counter, bool rename, bool useSftp, byte[] content = null)
         {
             Server = server;
             Port = port;
@@ -260,12 +270,13 @@ namespace iSpyApplication
             Username = username;
             Password = password;
             FileName = fileName;
-            Contents = contents;
+            Path = path;
             CameraId = cameraId;
             IsError = false;
             Counter = counter;
             Rename = rename;
             UseSftp = useSftp;
+            Content = content;
         }
     }
 }

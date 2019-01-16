@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using iSpyApplication.Onvif;
 using iSpyApplication.Utilities;
+using iSpyPRO.DirectShow;
 
 namespace iSpyApplication.Controls
 {
@@ -66,7 +67,17 @@ namespace iSpyApplication.Controls
             {
                 txtOnvifUsername.Text = CameraControl.Camobject.settings.login;
                 txtOnvifPassword.Text = CameraControl.Camobject.settings.password;
+                numRTSP.Value = CameraControl.Camobject.settings.onvif.rtspport;
+                ddlDeviceURL.Text = CameraControl.Camobject.settings.onvifident;
+                ddlTransport.SelectedIndex = CameraControl.Camobject.settings.rtspmode;
+
+                string conn = CameraControl.Nv("use");
+                if (!string.IsNullOrEmpty(conn) && VlcHelper.VlcInstalled)
+                    ddlConnectWith.SelectedItem = conn;
+                chkOverrideRTSPPort.Checked = numRTSP.Value != 0;
             }
+
+
         }
         #region Nested type: UISync
 
@@ -112,11 +123,17 @@ namespace iSpyApplication.Controls
 
         private void button1_Click(object sender, EventArgs e)
         {
+            GoStep1();
+        }
+
+        public void GoStep1()
+        {
             lbOnvifURLs.Items.Clear();
             Uri uri;
             if (!Uri.TryCreate(ddlDeviceURL.Text, UriKind.Absolute, out uri))
             {
                 MessageBox.Show("Invalid Address");
+                return;
             }
             var url = uri.ToString();
             var paq = uri.PathAndQuery;
@@ -124,11 +141,14 @@ namespace iSpyApplication.Controls
             {
                 url += "onvif/device_service";
             }
-            
+
 
             var dev = url;
             var urls = new List<object>();
-            var od = new ONVIFDevice(dev, txtOnvifUsername.Text, txtOnvifPassword.Text);
+            int port = 0;
+            if (chkOverrideRTSPPort.Checked)
+                port = Convert.ToInt32(numRTSP.Value);
+            var od = new ONVIFDevice(dev, txtOnvifUsername.Text, txtOnvifPassword.Text, port, 15);
 
             if (od.Profiles == null)
             {
@@ -152,6 +172,15 @@ namespace iSpyApplication.Controls
                 {
                     MessageBox.Show(this, "No media endpoints found", LocRm.GetString("Failed"));
                 }
+            }
+        }
+
+        private void chkOverrideRTSPPort_CheckedChanged(object sender, EventArgs e)
+        {
+            numRTSP.Enabled = chkOverrideRTSPPort.Checked;
+            if (!numRTSP.Enabled)
+            {
+                numRTSP.Value = 0;
             }
         }
     }

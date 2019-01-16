@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using FFmpeg.AutoGen;
@@ -18,7 +20,6 @@ internal static class Program
     //public static Mutex Mutex;
     private static string _apppath = "", _appdatapath = "";
     public static string Platform = "x86";
-    public static int GridViews = 0;
     private static uint _previousExecutionState;
     public static WinFormsAppIdleHandler AppIdle;
     public static string AppPath
@@ -211,15 +212,14 @@ internal static class Program
            
 
             _previousExecutionState = NativeCalls.SetThreadExecutionState(NativeCalls.EsContinuous | NativeCalls.EsSystemRequired);
-            
-            AppIdle = new WinFormsAppIdleHandler {Enabled = false};
+
+            AppIdle = new WinFormsAppIdleHandler();
             var mf = new MainForm(silentstartup, command);
             GC.KeepAlive(FfmpegMutex);
             
             Application.Run(mf);
             FfmpegMutex.Close();
 
-            AppIdle.Enabled = false;
             ffmpeg.avformat_network_deinit();
 
 
@@ -248,6 +248,7 @@ internal static class Program
                 {
 
                 }
+                ex = ex.InnerException;
             }
         }
         try
@@ -259,6 +260,49 @@ internal static class Program
             Console.WriteLine(ex.Message);
         }
     }
+    private static AvFormatLogCallback _avLogCallback;
+    private static IntPtr _delegatePtr;
+    private static av_log_set_callback_callback_func _avlog;
+    public static unsafe void SetFfmpegLogging()
+    {
+#if DEBUG
+        ffmpeg.av_log_set_level(ffmpeg.AV_LOG_ERROR);
+#else
+        ffmpeg.av_log_set_level(ffmpeg.AV_LOG_ERROR);
+#endif
+        _avLogCallback = AvFormatLogFunc;
+        _delegatePtr = Marshal.GetFunctionPointerForDelegate(_avLogCallback);
+        _avlog = new av_log_set_callback_callback_func
+                 {
+                     Pointer = _delegatePtr
+                 };
+
+        ffmpeg.av_log_set_callback(_avlog);
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    public unsafe delegate void AvFormatLogCallback(void* ptr, int level, string fmt, byte* vl);
+    public static unsafe void AvFormatLogFunc(void* ptr, int level, string fmt, byte* vl)
+    {
+        if (level > ffmpeg.av_log_get_level()) { return; }
+        fmt = fmt.Trim();
+        if (string.IsNullOrEmpty(fmt)) { return; }
+        byte[] buffer = new byte[1024];
+        string s = "";
+        fixed (byte* p = buffer)
+        {
+            int printPrefix = 1;
+            ffmpeg.av_log_format_line(ptr, level, fmt, vl, p, buffer.Length, &printPrefix);
+            s = Encoding.UTF8.GetString(buffer);
+
+            int pos = s.IndexOf('\0');
+            if (pos >= 0)
+                s = s.Substring(0, pos);
+        }
+        if (!string.IsNullOrEmpty(s))
+            Debug.WriteLine(s);
+    }
+
 
     private static bool ValidateRemoteCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors policyErrors)
     {
@@ -396,6 +440,40 @@ internal static class Program
             {
                 
             }
+        }
+    }
+
+    public static class MutexHelper
+    {
+        private static bool _enableMutex = false;
+        private static Mutex _mutex;
+
+        private static Mutex FfmpegMutex
+        {
+            get
+            {
+                if (_mutex != null)
+                    return _mutex;
+                _mutex = new Mutex();
+                return _mutex;
+            }
+        }
+        public static void Wait()
+        {
+            if (_enableMutex)
+                FfmpegMutex.WaitOne();
+        }
+
+        public static void Release()
+        {
+            if (_enableMutex)
+                FfmpegMutex.ReleaseMutex();
+        }
+
+        public static void Close()
+        {
+            if (_enableMutex)
+                FfmpegMutex.Close();
         }
     }
 }
